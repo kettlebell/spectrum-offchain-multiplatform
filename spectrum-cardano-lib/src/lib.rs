@@ -31,7 +31,9 @@ pub mod types;
 pub mod value;
 
 /// Asset name bytes padded to 32-byte fixed array and tupled with the len of the original asset name.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, derive_more::From)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, derive_more::From,
+)]
 pub struct AssetName(u8, [u8; 32]);
 
 impl AssetName {
@@ -111,7 +113,7 @@ impl TryFrom<Vec<u8>> for AssetName {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Deserialize, Serialize)]
 #[serde(try_from = "String")]
 pub struct OutputRef(TransactionHash, u64);
 

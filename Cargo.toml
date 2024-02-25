@@ -15,6 +15,7 @@ members = [
     "algebra-core",
     "splash-dao-offchain",
     "spectrum-streaming",
+    "splash-dao-agent",
 ]
 
 [profile.release]

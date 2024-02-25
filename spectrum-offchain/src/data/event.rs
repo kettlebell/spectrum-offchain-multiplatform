@@ -253,9 +253,9 @@ where
 }
 
 /// Any possible modality of `T`.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum AnyMod<T: EntitySnapshot> {
-    Confirmed(Confirmed<T>),
+    Confirmed(Traced<Confirmed<T>>),
     Unconfirmed(Unconfirmed<T>),
     Predicted(Traced<Predicted<T>>),
 }
@@ -263,7 +263,9 @@ pub enum AnyMod<T: EntitySnapshot> {
 impl<T: EntitySnapshot> AnyMod<T> {
     pub fn as_erased(&self) -> &T {
         match self {
-            AnyMod::Confirmed(Confirmed(t)) => t,
+            AnyMod::Confirmed(Traced {
+                state: Confirmed(t), ..
+            }) => t,
             AnyMod::Unconfirmed(Unconfirmed(t)) => t,
             AnyMod::Predicted(Traced {
                 state: Predicted(t), ..
@@ -272,7 +274,9 @@ impl<T: EntitySnapshot> AnyMod<T> {
     }
     pub fn erased(self) -> T {
         match self {
-            AnyMod::Confirmed(Confirmed(t)) => t,
+            AnyMod::Confirmed(Traced {
+                state: Confirmed(t), ..
+            }) => t,
             AnyMod::Unconfirmed(Unconfirmed(t)) => t,
             AnyMod::Predicted(Traced {
                 state: Predicted(t), ..
