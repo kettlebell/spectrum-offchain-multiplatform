@@ -1,17 +1,17 @@
 name: TEST CI for Develop Branch
 
-# Trigger the workflow on push to the develop branch
 on:
   push:
     branches:
       - cicdtest
   
   pull_request:
+    branches:
+      - cicdtest
     types: [opened, synchronize, closed]    
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -39,23 +39,57 @@ jobs:
         key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-build-
-          
+
     - name: Run Cargo fmt
       id: fmt
-      run: |
-        if ! cargo fmt --all -- --check; then
-          echo "Cargo fmt failed."
-        else
-          echo "Cargo fmt succeeded."
-        fi
+      run: cargo fmt --all -- --check
+      continue-on-error: true
+
+    - name: Notify Slack on fmt result
+      if: always()
+      uses: slackapi/slack-github-action@v1.22.0
+      with:
+        payload: |
+          {
+            "channel": "#your-channel",
+            "text": "Cargo fmt result: ${{ job.status }}\nCommit: ${{ github.sha }}\nCommit Message: ${{ github.event.head_commit.message }}\nAuthor: ${{ github.event.head_commit.author.name }}\nBranch: ${{ github.ref }}\nPR: ${{ github.event.pull_request.title }}\nPR URL: ${{ github.event.pull_request.html_url }}",
+            "username": "github-actions"
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     - name: Run Cargo Build
       id: build
-      run: |
-        if ! cargo build --package bloom-cardano-agent --bin bloom-cardano-agent; then
-          echo "Cargo build failed."
-        else
-          echo "Cargo build succeeded."
-        fi
-   
+      run: cargo build --package bloom-cardano-agent --bin bloom-cardano-agent
+      continue-on-error: true
+
+    - name: Notify Slack on build result
+      if: always()
+      uses: slackapi/slack-github-action@v1.22.0
+      with:
+        payload: |
+          {
+            "channel": "#your-channel",
+            "text": "Cargo build result: ${{ job.status }}\nCommit: ${{ github.sha }}\nCommit Message: ${{ github.event.head_commit.message }}\nAuthor: ${{ github.event.head_commit.author.name }}\nBranch: ${{ github.ref }}\nPR: ${{ github.event.pull_request.title }}\nPR URL: ${{ github.event.pull_request.html_url }}",
+            "username": "github-actions"
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     - name: Run tests
+      id: test
       run: cargo test --package bloom-cardano-agent --bin bloom-cardano-agent
+      continue-on-error: true
+
+    - name: Notify Slack on test result
+      if: always()
+      uses: slackapi/slack-github-action@v1.22.0
+      with:
+        payload: |
+          {
+            "channel": "#your-channel",
+            "text": "Cargo test result: ${{ job.status }}\nCommit: ${{ github.sha }}\nCommit Message: ${{ github.event.head_commit.message }}\nAuthor: ${{ github.event.head_commit.author.name }}\nBranch: ${{ github.ref }}\nPR: ${{ github.event.pull_request.title }}\nPR URL: ${{ github.event.pull_request.html_url }}",
+            "username": "github-actions"
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL2 }}
