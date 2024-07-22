@@ -246,7 +246,7 @@ where
         let mut index = index.lock().await;
         if let Some(order) = index.get(&state_id) {
             let order_id = order.get_self_ref();
-            trace!("Order {} eliminated", order_id);
+            trace!("Order {} eliminated by {}", order_id, tx_hash);
             consumed_orders.insert(order_id, order);
         }
     }
@@ -259,7 +259,7 @@ where
         match Order::try_from_ledger(&o, &HandlerContext::new(o_ref, consumed_utxos, context)) {
             Some(order) => {
                 let order_id = order.get_self_ref();
-                trace!("Order {} created", order_id);
+                trace!("Order {} created by {}", order_id, tx_hash);
                 produced_orders.insert(order_id, order);
             }
             None => {
@@ -319,7 +319,7 @@ where
         if index.exists(&state_id) {
             if let Some(entity) = index.get_state(&state_id) {
                 let entity_id = entity.stable_id();
-                trace!("Entity {} consumed", entity_id);
+                trace!("Entity {} consumed by {}", entity_id, tx_hash);
                 consumed_entities.insert(entity_id, entity);
             }
         }
@@ -333,7 +333,7 @@ where
         match Entity::try_from_ledger(&o, &HandlerContext::new(o_ref, consumed_utxos, context)) {
             Some(entity) => {
                 let entity_id = entity.stable_id();
-                trace!("Entity {} created", entity_id);
+                trace!("Entity {} created by {}", entity_id, tx_hash);
                 produced_entities.insert(entity_id, entity);
             }
             None => {
@@ -419,7 +419,7 @@ where
             LedgerTxEvent::TxUnapplied(tx) => {
                 match extract_persistent_transitions(Arc::clone(&self.index), self.context, tx).await {
                     Ok((transitions, tx)) => {
-                        trace!("{} entities found in applied TX", transitions.len());
+                        trace!("{} entities found in unapplied TX", transitions.len());
                         let mut index = self.index.lock().await;
                         index.run_eviction();
                         for tr in transitions {
@@ -468,7 +468,7 @@ where
             MempoolUpdate::TxAccepted(tx) => {
                 match extract_persistent_transitions(Arc::clone(&self.index), self.context, tx).await {
                     Ok((transitions, tx)) => {
-                        trace!("{} entities found in applied TX", transitions.len());
+                        trace!("{} entities found in accepted TX", transitions.len());
                         let mut index = self.index.lock().await;
                         index.run_eviction();
                         for tr in transitions {

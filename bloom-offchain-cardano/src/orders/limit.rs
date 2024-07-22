@@ -1,4 +1,4 @@
-use std::cmp::{max, Ordering};
+use std::cmp::{max, min, Ordering};
 use std::fmt::{Display, Formatter};
 
 use cml_chain::plutus::{ConstrPlutusData, PlutusData};
@@ -338,7 +338,7 @@ where
                 .and_then(|lov| lov.checked_sub(conf.fee))
                 .and_then(|lov| lov.checked_sub(tradable_lovelace))?;
             if let Some(base_output) = linear_output_relative(conf.tradable_input, conf.base_price) {
-                let min_marginal_output = conf.min_marginal_output;
+                let min_marginal_output = min(conf.min_marginal_output, base_output);
                 let max_execution_steps_possible = base_output.checked_div(min_marginal_output);
                 let max_execution_steps_available = execution_budget.checked_div(conf.cost_per_ex_step);
                 if let (Some(max_execution_steps_possible), Some(max_execution_steps_available)) =
@@ -355,8 +355,7 @@ where
                     if sufficient_input && sufficient_execution_budget && executable {
                         let bounds = ctx.select::<LimitOrderBounds>();
                         let valid_configuration = conf.cost_per_ex_step >= bounds.min_cost_per_ex_step
-                            && execution_budget >= conf.cost_per_ex_step
-                            && base_output >= min_marginal_output;
+                            && execution_budget >= conf.cost_per_ex_step;
                         if valid_configuration {
                             // Fresh beacon must be derived from one of consumed utxos.
                             let valid_fresh_beacon = ctx
@@ -373,7 +372,7 @@ where
                                 execution_budget,
                                 fee_asset: AssetClass::Native,
                                 fee: conf.fee,
-                                min_marginal_output: conf.min_marginal_output,
+                                min_marginal_output,
                                 max_cost_per_ex_step: conf.cost_per_ex_step,
                                 redeemer_address: conf.redeemer_address,
                                 cancellation_pkh: conf.cancellation_pkh,
@@ -520,7 +519,7 @@ mod tests {
         println!("P_abs: {}", ord.price());
     }
 
-    const ORDER_UTXO: &str = "A300583911DBE7A3D8A1D82990992A38EEA1A2EFAA68E931E252FC92CA1383809BF68864A338AE8ED81F61114D857CB6A215C8E685AA5C43BC1F879CCE011A007A1200028201D818590102D8799F4100581C11D9D33C659B740CF098E147510EECEE3EEBEEF1D5DF1097DA39A4D3D8799F4040FF1A004C4B40011B00000001D0B7A2F4D8799F581C5AC3D4BDCA238105A040A565E5D7E734B7C9E1630AEC7650E809E34A454D454C4F4EFFD8799F1B00000001D0B7A2F41A004C4B40FF00D8799FD8799F581C37DCE7298152979F0D0FF71FB2D0C759B298AC6FA7BC56B928FFC1BCFFD8799FD8799FD8799F581CF68864A338AE8ED81F61114D857CB6A215C8E685AA5C43BC1F879CCEFFFFFFFF581C37DCE7298152979F0D0FF71FB2D0C759B298AC6FA7BC56B928FFC1BC9F581C17979109209D255917B8563D1E50A5BE8123D5E283FBC6FBB04550C6FFFF";
+    const ORDER_UTXO: &str = "a300583911dbe7a3d8a1d82990992a38eea1a2efaa68e931e252fc92ca1383809bad5848686280b6f969de16cb90b09122b4002937bd1b83d11f4c288701821a0b1aba14a1581c60faa64709fede8dffed0dccb69da337a5bf61eda0c773156ea78b4da143534b591b0000000447a53ac0028201d81858fed8798c4100581cf3f1330e1751c1ccc941e9c0b15be9eb42d9c943e55fe0cce0516b4ad8798240401a0aea06861a0007a1201b000000014f4f45bcd87982581c60faa64709fede8dffed0dccb69da337a5bf61eda0c773156ea78b4d43534b59d879821b004ff1ad674f36281b00038d7ea4c6800000d87982d87981581cd533d9f548a6d15963e69b16e3136797a2869c9d68daa8f6daa2e94cd87981d87981d87981581cad5848686280b6f969de16cb90b09122b4002937bd1b83d11f4c2887581cd533d9f548a6d15963e69b16e3136797a2869c9d68daa8f6daa2e94c81581c2f9ff04d8914bf64d671a03d34ab7937eb417831ea6b9f7fbcab96f5";
 
     #[test]
     fn read_config() {
