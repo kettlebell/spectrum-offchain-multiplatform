@@ -12,7 +12,7 @@ use cml_crypto::{RawBytesEncoding, TransactionHash};
 use derivative::Derivative;
 use derive_more::{From, Into};
 use num::{CheckedAdd, CheckedSub};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::plutus_data::{ConstrPlutusDataExtension, PlutusDataExtension};
 use crate::types::TryFromPData;

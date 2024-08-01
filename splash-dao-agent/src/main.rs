@@ -1,6 +1,6 @@
 use std::{
     marker::PhantomData,
-    sync::{Arc, Once},
+    sync::{atomic::AtomicBool, Arc, Once},
     time::UNIX_EPOCH,
 };
 
@@ -26,6 +26,7 @@ use config::AppConfig;
 use futures::{stream::select_all, FutureExt, Stream, StreamExt};
 use spectrum_cardano_lib::{
     constants::BABBAGE_ERA_ID, hash::hash_transaction_canonical, output::FinalizedTxOut,
+    transaction::OutboundTransaction,
 };
 use spectrum_offchain::{
     backlog::{persistence::BacklogStoreRocksDB, BacklogConfig, PersistentPriorityBacklog},
@@ -70,6 +71,8 @@ async fn main() {
 
     info!("Starting DAO Agent ..");
 
+    let rollback_in_progress = Arc::new(AtomicBool::new(false));
+
     let explorer = Maestro::new(config.maestro_key_path, config.network_id.into())
         .await
         .expect("Maestro instantiation failed");
@@ -86,12 +89,13 @@ async fn main() {
     .expect("ChainSync initialization failed");
 
     // n2c clients:
-    let tx_submission_client =
-        LocalTxSubmissionClient::<BABBAGE_ERA_ID, Transaction>::init(config.node.path, config.node.magic)
-            .await
-            .expect("LocalTxSubmission initialization failed");
     let (tx_submission_agent, tx_submission_channel) =
-        TxSubmissionAgent::new(tx_submission_client, config.tx_submission_buffer_size);
+        TxSubmissionAgent::<BABBAGE_ERA_ID, OutboundTransaction<Transaction>, Transaction>::new(
+            config.node,
+            config.tx_submission_buffer_size,
+        )
+        .await
+        .unwrap();
 
     // prepare upstreams
     let tx_submission_stream = tx_submission_agent_stream(tx_submission_agent);
@@ -101,6 +105,7 @@ async fn main() {
         chain_sync_stream(chain_sync, signal_tip_reached_snd),
         config.chain_sync.disable_rollbacks_until,
         config.chain_sync.replay_from_point,
+        rollback_in_progress,
     ))
     .await
     .map(|ev| match ev {

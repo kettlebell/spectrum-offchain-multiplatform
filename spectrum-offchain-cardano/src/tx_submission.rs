@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
 use std::ops::Deref;
 
 use async_stream::stream;
@@ -9,14 +9,14 @@ use futures::{SinkExt, Stream, StreamExt};
 use log::{trace, warn};
 use pallas_network::miniprotocols::localtxsubmission;
 use pallas_network::miniprotocols::localtxsubmission::cardano_node_errors::{
-    AlonzoUtxoPredFailure, AlonzoUtxowPredFailure, ApplyTxError, BabbageUtxoPredFailure,
-    BabbageUtxowPredFailure, ShelleyLedgerPredFailure, ShelleyUtxowPredFailure, TxInput,
+    AlonzoUtxoPredFailure, ApplyTxError, BabbageUtxoPredFailure, BabbageUtxowPredFailure,
+    ShelleyLedgerPredFailure, TxInput,
 };
 use pallas_network::miniprotocols::localtxsubmission::Response;
 use pallas_network::multiplexer;
 
 use cardano_submit_api::client::{Error, LocalTxSubmissionClient};
-use pallas_primitives::conway::Value;
+use spectrum_cardano_lib::transaction::OutboundTransaction;
 use spectrum_cardano_lib::OutputRef;
 use spectrum_offchain::network::Network;
 use spectrum_offchain::tx_hash::CanonicalHash;
@@ -167,11 +167,12 @@ impl TryFrom<RejectReasons> for HashSet<OutputRef> {
 }
 
 #[async_trait::async_trait]
-impl<const ERA: u16, Tx> Network<Tx, RejectReasons> for TxSubmissionChannel<ERA, Tx>
+impl<const ERA: u16, Tx> Network<OutboundTransaction<Tx>, RejectReasons>
+    for TxSubmissionChannel<ERA, OutboundTransaction<Tx>>
 where
-    Tx: Send,
+    Tx: Send + Clone,
 {
-    async fn submit_tx(&mut self, tx: Tx) -> Result<(), RejectReasons> {
+    async fn submit_tx(&mut self, tx: OutboundTransaction<Tx>) -> Result<(), RejectReasons> {
         let (snd, recv) = oneshot::channel();
         self.0.send(SubmitTx(tx, snd)).await.unwrap();
         recv.await.expect("Channel closed").into()

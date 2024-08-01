@@ -6,7 +6,10 @@ use cardano_chain_sync::client::Point;
 use cardano_explorer::data::ExplorerConfig;
 use spectrum_cardano_lib::NetworkId;
 use spectrum_offchain::rocks::RocksConfig;
-use spectrum_offchain_cardano::creds::{OperatorCred, OperatorRewardAddress};
+use spectrum_offchain_cardano::{
+    creds::{OperatorCred, OperatorRewardAddress},
+    node::NodeConfig,
+};
 
 #[derive(serde::Deserialize)]
 #[serde(bound = "'de: 'a")]
@@ -31,13 +34,6 @@ pub struct AppConfig<'a> {
     pub smart_farm_persistence_config: RocksConfig,
     pub perm_manager_persistence_config: RocksConfig,
     pub genesis_start_time: u64,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NodeConfig<'a> {
-    pub path: &'a str,
-    pub magic: u64,
 }
 
 #[derive(serde::Deserialize)]

@@ -1,6 +1,5 @@
 pub mod backlog;
 pub mod binary;
-mod blah;
 pub mod box_resolver;
 pub mod circular_filter;
 pub mod combinators;

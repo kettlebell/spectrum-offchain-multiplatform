@@ -14,17 +14,17 @@ use cml_multi_era::babbage::BabbageTransaction;
 use futures::{pin_mut, Future, FutureExt, Stream, StreamExt};
 use futures_timer::Delay;
 use spectrum_cardano_lib::output::FinalizedTxOut;
-use spectrum_cardano_lib::transaction::BabbageTransactionOutputExtension;
+use spectrum_cardano_lib::transaction::{BabbageTransactionOutputExtension, OutboundTransaction};
 use spectrum_cardano_lib::{AssetName, OutputRef};
 use spectrum_offchain::backlog::ResilientBacklog;
-use spectrum_offchain::data::unique_entity::{AnyMod, Confirmed, Predicted, Traced, Unconfirmed};
+use spectrum_offchain::data::event::{AnyMod, Confirmed, Predicted, Traced, Unconfirmed};
 use spectrum_offchain::data::{EntitySnapshot, Has};
 use spectrum_offchain::ledger::TryFromLedger;
 use spectrum_offchain::network::Network;
 use spectrum_offchain::tx_prover::TxProver;
 use spectrum_offchain_cardano::deployment::DeployedScriptInfo;
 use spectrum_offchain_cardano::prover::operator::OperatorProver;
-use spectrum_offchain_cardano::tx_submission::TxRejected;
+use spectrum_offchain_cardano::tx_submission::RejectReasons;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
@@ -107,7 +107,7 @@ where
     Time: NetworkTimeProvider + Send + Sync,
     Actions: InflationActions<Bearer> + Send + Sync,
     Bearer: Send + Sync,
-    Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+    Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
 {
     async fn attempt(&mut self) -> Option<ToRoutine> {
         match self.read_state().await {
@@ -446,7 +446,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     ) -> Option<ToRoutine>
     where
         Actions: InflationActions<Bearer> + Send + Sync,
-        Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+        Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
         IB: StateProjectionWrite<InflationBoxSnapshot, Bearer> + Send + Sync,
         PF: StateProjectionWrite<PollFactorySnapshot, Bearer> + Send + Sync,
         WP: StateProjectionWrite<WeightingPollSnapshot, Bearer> + Send + Sync,
@@ -482,7 +482,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     ) -> Option<ToRoutine>
     where
         Actions: InflationActions<Bearer> + Send + Sync,
-        Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+        Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
         WP: StateProjectionWrite<WeightingPollSnapshot, Bearer> + Send + Sync,
         VE: StateProjectionWrite<VotingEscrowSnapshot, Bearer> + Send + Sync,
     {
@@ -511,7 +511,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
         }: DistributionInProgress<Bearer>,
     ) where
         Actions: InflationActions<Bearer> + Send + Sync,
-        Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+        Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
         WP: StateProjectionWrite<WeightingPollSnapshot, Bearer> + Send + Sync,
         SF: StateProjectionWrite<SmartFarmSnapshot, Bearer> + Send + Sync,
         PM: StateProjectionWrite<PermManagerSnapshot, Bearer> + Send + Sync,
@@ -539,7 +539,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     ) -> Option<ToRoutine>
     where
         Actions: InflationActions<Bearer> + Send + Sync,
-        Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+        Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
     {
         if let AnyMod::Confirmed(Traced {
             state: Confirmed(weighting_poll),
@@ -586,7 +586,7 @@ where
         + Sync,
     Time: NetworkTimeProvider + Send + Sync,
     Actions: InflationActions<TransactionOutput> + Send + Sync,
-    Net: Network<Transaction, TxRejected> + Clone + Sync + Send,
+    Net: Network<OutboundTransaction<Transaction>, RejectReasons> + Clone + Sync + Send,
 {
     async fn process_ledger_event(&mut self, ev: LedgerTxEvent<(TransactionHash, BabbageTransaction)>) {
         match ev {
@@ -886,8 +886,10 @@ mod tests {
     use tokio::sync::Mutex;
 
     use bloom_offchain::execution_engine::bundled::Bundled;
-    use spectrum_offchain::data::unique_entity::{AnyMod, Confirmed, Predicted, Traced};
-    use spectrum_offchain::data::{EntitySnapshot, HasIdentifier, Identifier};
+    use spectrum_offchain::data::{
+        event::{AnyMod, Confirmed, Predicted, Traced},
+        EntitySnapshot, HasIdentifier, Identifier,
+    };
 
     use crate::state_projection::{StateProjectionRead, StateProjectionWrite};
 

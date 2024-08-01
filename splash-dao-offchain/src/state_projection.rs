@@ -5,7 +5,7 @@ use bloom_offchain::execution_engine::bundled::Bundled;
 use rocksdb::{Direction, IteratorMode, ReadOptions};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use spectrum_offchain::data::unique_entity::{AnyMod, Confirmed, Predicted, Traced};
+use spectrum_offchain::data::event::{AnyMod, Confirmed, Predicted, Traced};
 use spectrum_offchain::data::{EntitySnapshot, HasIdentifier};
 use spectrum_offchain::rocks::RocksConfig;
 
@@ -252,7 +252,7 @@ mod tests {
     use rand::RngCore;
     use serde::{Deserialize, Serialize};
     use spectrum_offchain::data::{
-        unique_entity::{AnyMod, Confirmed, Predicted, Traced},
+        event::{AnyMod, Confirmed, Predicted, Traced},
         EntitySnapshot, HasIdentifier, Identifier, Stable,
     };
 

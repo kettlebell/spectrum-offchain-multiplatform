@@ -14,6 +14,7 @@ use cml_chain::transaction::{TransactionInput, TransactionOutput};
 use cml_chain::utils::BigInteger;
 use cml_chain::OrderedHashMap;
 use cml_crypto::{blake2b256, RawBytesEncoding, TransactionHash};
+use spectrum_offchain::data::event::{Predicted, Traced};
 use spectrum_offchain_cardano::deployment::DeployedScriptInfo;
 
 use bloom_offchain::execution_engine::bundled::Bundled;
@@ -23,7 +24,6 @@ use spectrum_cardano_lib::plutus_data::IntoPlutusData;
 use spectrum_cardano_lib::protocol_params::constant_tx_builder;
 use spectrum_cardano_lib::transaction::TransactionOutputExtension;
 use spectrum_cardano_lib::{AssetName, OutputRef};
-use spectrum_offchain::data::unique_entity::{Predicted, Traced};
 use spectrum_offchain::data::Has;
 use spectrum_offchain::ledger::IntoLedger;
 
@@ -214,15 +214,8 @@ where
             factory_redeemer.into_pd(),
         );
 
-        let wp_input = *(factory.version());
-        let mut bytes = wp_input.tx_hash().to_raw_bytes().to_vec();
-        bytes[10] = 0;
-        let th = TransactionHash::from_hex(&hex::encode(bytes.clone())).unwrap();
-        let ix = wp_input.index();
-        println!("QQQQQQQQQQQQQQQQQQQQ: {}, ix: {}", hex::encode(bytes), ix);
-
         let wp_factory_input =
-            SingleInputBuilder::new(TransactionInput::from(OutputRef::new(th, ix)), factory_in.clone())
+            SingleInputBuilder::new(TransactionInput::from(*(factory.version())), factory_in.clone())
                 .plutus_script_inline_datum(wp_factory_script, vec![])
                 .unwrap();
 
