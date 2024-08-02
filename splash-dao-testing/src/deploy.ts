@@ -47,18 +47,19 @@ const SPLASH_POLICY_ID =
   "adf2425c138138efce80fd0b2ed8f227caf052f9ec44b8a92e942dfa";
 const SPLASH_ASSET_NAME = fromText("SPLASH");
 
-const ZEROTH_EPOCH_START = 1717577607;
+const ZEROTH_EPOCH_START = 1722580494n;
 const INFLATION_BOX_INITIAL_SPLASH_QTY = 32000000000000n;
 
 async function main() {
   // console.log(toHex(cbor.encode(new Uint8Array([]))));
   const lucid = await getLucid();
   const pubKey = await setupWallet(lucid);
+  const address = await lucid.wallet.address;
+  console.log("wallet address: ", address);
 
   // SPECIFY SETTINGS HERE -------------------------------------------------------------------------
 
   // To differentiate different deployments for testing
-  const postfix = "_22";
   const acceptedAssets = new Map();
   acceptedAssets.set({
     policy: SPLASH_POLICY_ID,
@@ -89,13 +90,9 @@ async function main() {
     },
   };
 
-  const theDatum = Data.to(daoInput.farmFactory, SmartFarmFarmFactory.state);
-  console.log("Datum: " + theDatum);
-  console.log("Datum hash: " + lucid.utils.datumToHash(theDatum));
-
   //------------------------------------------------------------------------------------------------
 
-  //await mintNFTs(lucid, postfix);
+  await mintNFTs(lucid);
 
   const nftDetails = JSON.parse(
     await Deno.readTextFile(NFT_JSON_FILENAME),
@@ -140,6 +137,7 @@ async function createMultipleMintingUtxOs(
     .payToAddress(addr, { lovelace: subsequentValuePerBox })
     .payToAddress(addr, { lovelace: subsequentValuePerBox })
     .payToAddress(addr, { lovelace: subsequentValuePerBox })
+    .payToAddress(addr, { lovelace: subsequentValuePerBox })
     .complete();
 
   const signedTx = await tx.sign().complete();
@@ -154,7 +152,6 @@ async function createMultipleMintingUtxOs(
 
 async function mintNFTs(
   lucid: Lucid,
-  namePostfix: string,
 ) {
   const myAddr = await lucid.wallet.address();
 
@@ -172,7 +169,6 @@ async function mintNFTs(
   const nftDetails = buildNFTDetails(
     lucid,
     multipleUTxOTxId,
-    namePostfix,
   );
   let txBuilder = lucid.newTx().collectFrom(utxos);
 
@@ -207,11 +203,10 @@ async function mintNFTs(
 function buildNFTDetails(
   lucid: Lucid,
   multipleUTxOTxId: string,
-  namePostfix: string,
 ): NFTDetails {
   const toMint: [Script, string][] = [];
-  // 6 NFTs
-  for (let i = 0; i < 6; i++) {
+  const NUM_NFTS = 7;
+  for (let i = 0; i < NUM_NFTS; i++) {
     const script = new DeploymentMintingOnetimeMint(
       {
         transactionId: { hash: multipleUTxOTxId },
@@ -228,26 +223,13 @@ function buildNFTDetails(
   const gtTokenQty = 45000000000000000n;
   const mintGTScript = new DeploymentMintingOnetimeMint({
     transactionId: { hash: multipleUTxOTxId },
-    outputIndex: BigInt(6),
+    outputIndex: BigInt(NUM_NFTS),
   }, gtTokenQty);
   const gtPolicyId = lucid.utils.mintingPolicyToId(mintGTScript);
 
   toMint.push([mintGTScript, gtPolicyId]);
 
   const toBuiltPolicy = (
-    e: [Script, string],
-    assetName: string,
-    quantity: bigint,
-  ) => {
-    return {
-      script: e[0],
-      policyId: e[1],
-      assetName: fromText(assetName + namePostfix),
-      quantity,
-    };
-  };
-
-  const toBuiltPolicyWithFixedName = (
     e: [Script, string],
     quantity: bigint,
   ) => {
@@ -260,19 +242,20 @@ function buildNFTDetails(
   };
 
   return {
-    factory_auth: toBuiltPolicyWithFixedName(toMint[0], 1n),
-    ve_factory_auth: toBuiltPolicyWithFixedName(toMint[1], 1n),
-    perm_auth: toBuiltPolicyWithFixedName(toMint[2], 1n),
-    proposal_auth: toBuiltPolicy(toMint[3], "proposal_auth", 1n),
-    edao_msig: toBuiltPolicy(toMint[4], "edao_msig", 1n),
-    ve_identifier: toBuiltPolicyWithFixedName(toMint[5], 1n),
-    gt: toBuiltPolicy(toMint[6], "gt", gtTokenQty),
+    factory_auth: toBuiltPolicy(toMint[0], 1n),
+    ve_factory_auth: toBuiltPolicy(toMint[1], 1n),
+    perm_auth: toBuiltPolicy(toMint[2], 1n),
+    proposal_auth: toBuiltPolicy(toMint[3], 1n),
+    edao_msig: toBuiltPolicy(toMint[4], 1n),
+    ve_identifier: toBuiltPolicy(toMint[5], 1n),
+    inflation_auth: toBuiltPolicy(toMint[6], 1n),
+    gt: toBuiltPolicy(toMint[7], gtTokenQty),
   };
 }
 
 async function deployValidators(
   lucid: Lucid,
-): Promise<[string, string]> {
+): Promise<[string, string, string]> {
   const nftDetails = JSON.parse(await Deno.readTextFile(NFT_JSON_FILENAME));
   const factoryAuthPolicy = nftDetails.factory_auth.policyId;
   const gtPolicy = nftDetails.gt.policyId;
@@ -281,6 +264,7 @@ async function deployValidators(
   const permManagerAuthPolicy = nftDetails.perm_auth.policyId;
   const edaoMSig = nftDetails.edao_msig.policyId;
   const veIdentifierPolicy = nftDetails.ve_identifier.policyId;
+  const inflationAuthPolicy = nftDetails.inflation_auth.policyId;
 
   const governancePowerScript = new VotingEscrowMintGovernancePower(
     proposalAuthPolicy,
@@ -335,13 +319,13 @@ async function deployValidators(
   );
 
   const farmAuthPolicy = lucid.utils.mintingPolicyToId(farmAuthScript);
-  const zerothEpochStart = 1000n;
 
   const wpAuthScript = new WeightingPollMintWpAuthToken(
     SPLASH_POLICY_ID,
     farmAuthPolicy,
     factoryAuthPolicy,
-    zerothEpochStart,
+    inflationAuthPolicy,
+    ZEROTH_EPOCH_START,
   );
   const wpAuthPolicy = lucid.utils.mintingPolicyToId(wpAuthScript);
 
@@ -363,7 +347,7 @@ async function deployValidators(
   );
 
   const weightingPowerScript = new VotingEscrowMintWeightingPower(
-    zerothEpochStart,
+    ZEROTH_EPOCH_START,
     proposalAuthPolicy,
     gtPolicy,
   );
@@ -377,10 +361,11 @@ async function deployValidators(
   );
 
   const inflationScript = new InflationInflation(
+    inflationAuthPolicy,
     SPLASH_POLICY_ID,
     wpAuthPolicy,
     weightingPowerPolicy,
-    zerothEpochStart,
+    ZEROTH_EPOCH_START,
   );
 
   const inflationScriptHash = lucid.utils.validatorToScriptHash(
@@ -497,42 +482,42 @@ async function deployValidators(
     slot: 0,
   });
   const lockScript = lucid.utils.validatorToAddress(ns);
-  //const tx0 = await lucid
-  //  .newTx()
-  //  .payToAddressWithData(
-  //    lockScript,
-  //    { scriptRef: builtValidators.inflation.script },
-  //    {},
-  //  )
-  //  .payToAddressWithData(
-  //    lockScript,
-  //    { scriptRef: builtValidators.votingEscrow.script },
-  //    {},
-  //  )
-  //  .payToAddressWithData(
-  //    lockScript,
-  //    { scriptRef: builtValidators.farmFactory.script },
-  //    {},
-  //  )
-  //  .payToAddressWithData(
-  //    lockScript,
-  //    { scriptRef: builtValidators.wpFactory.script },
-  //    {},
-  //  )
-  //  .payToAddressWithData(
-  //    lockScript,
-  //    { scriptRef: builtValidators.mintVECompositionToken.script },
-  //    {},
-  //  )
-  //  .complete();
-  //const signedTx0 = await tx0.sign().complete();
-  //const txHash0 = await signedTx0.submit();
-  //console.log("Deploying validators (first batch). tx hash: " + txHash0);
-  //console.log("Waiting for TX to be confirmed");
-  //await lucid.awaitTx(txHash0);
-  //await sleep(TX_CONFIRMATION_WAIT_TIME);
+  const tx0 = await lucid
+    .newTx()
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.inflation.script },
+      {},
+    )
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.votingEscrow.script },
+      {},
+    )
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.farmFactory.script },
+      {},
+    )
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.wpFactory.script },
+      {},
+    )
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.mintVECompositionToken.script },
+      {},
+    )
+    .complete();
+  const signedTx0 = await tx0.sign().complete();
+  const txHash0 = await signedTx0.submit();
+  console.log("Deploying validators (first batch). tx hash: " + txHash0);
+  console.log("Waiting for TX to be confirmed");
+  await lucid.awaitTx(txHash0);
+  await sleep(TX_CONFIRMATION_WAIT_TIME);
 
-  const tx = await lucid
+  const tx1 = await lucid
     .newTx()
     .payToAddressWithData(
       lockScript,
@@ -549,6 +534,17 @@ async function deployValidators(
       { scriptRef: builtValidators.permManager.script },
       {},
     )
+    .complete();
+  const signedTx1 = await tx1.sign().complete();
+  const txHash1 = await signedTx1.submit();
+  console.log("Deploying validators (2nd batch). tx hash: " + txHash1);
+  console.log("Waiting for TX to be confirmed");
+  await lucid.awaitTx(txHash1);
+  await sleep(TX_CONFIRMATION_WAIT_TIME);
+
+  // 3rd batch
+  const tx2 = await lucid
+    .newTx()
     .payToAddressWithData(
       lockScript,
       { scriptRef: builtValidators.mintWPAuthToken.script },
@@ -565,16 +561,14 @@ async function deployValidators(
       {},
     )
     .complete();
-  const signedTx = await tx.sign().complete();
-  const txHash1 = await signedTx.submit();
-  console.log("Deploying validators (2nd batch). tx hash: " + txHash1);
+  const signedTx2 = await tx2.sign().complete();
+  const txHash2 = await signedTx2.submit();
+  console.log("Deploying validators (3rd batch). tx hash: " + txHash2);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash1);
+  await lucid.awaitTx(txHash2);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
 
-  const txHash0 =
-    "32e373da8cde77e7d3742ba0a392b1e296fadbd9bb6d169783a3a54fa8d26f23";
-  return [txHash0, txHash1];
+  return [txHash0, txHash1, txHash2];
 }
 
 async function createEntities(
@@ -590,6 +584,8 @@ async function createEntities(
   const gtToken = nftDetails.gt.policyId + nftDetails.gt.assetName;
   const factoryAuthToken = nftDetails.factory_auth.policyId +
     nftDetails.factory_auth.assetName;
+  const inflationAuthToken = nftDetails.inflation_auth.policyId +
+    nftDetails.inflation_auth.assetName;
 
   const toAddr = (hash: string) =>
     lucid.utils.credentialToAddress(
@@ -611,7 +607,7 @@ async function createEntities(
     .payToContract(
       toAddr(dv.inflation.hash),
       Data.to(daoInput.inflation, InflationInflation.epoch),
-      { lovelace: qty },
+      { lovelace: qty, [inflationAuthToken]: 1n },
     )
     .payToContract(
       toAddr(dv.votingEscrow.hash),
@@ -745,7 +741,7 @@ async function createEntities(
 async function getDeployedValidators(
   lucid: Lucid,
   builtValidators: BuiltValidators,
-  deployedValidatorsTxId: [string, string],
+  deployedValidatorsTxId: [string, string, string],
 ) {
   try {
     const builtValidatorsKeys = Object.keys(builtValidators) as ScriptNames[];
@@ -753,15 +749,22 @@ async function getDeployedValidators(
       txHash: deployedValidatorsTxId[0],
       outputIndex: index,
     }));
-    const right = builtValidatorsKeys.slice(5, builtValidatorsKeys.length).map((
+    const mid = builtValidatorsKeys.slice(5, 8).map((
       _,
       index,
     ) => ({
       txHash: deployedValidatorsTxId[1],
       outputIndex: index,
     }));
+    const right = builtValidatorsKeys.slice(8, builtValidatorsKeys.length).map((
+      _,
+      index,
+    ) => ({
+      txHash: deployedValidatorsTxId[2],
+      outputIndex: index,
+    }));
 
-    const utxosByOutRefsRequest = left.concat(right);
+    const utxosByOutRefsRequest = left.concat(mid).concat(right);
 
     const validatorsUtxos = await lucid.utxosByOutRef(utxosByOutRefsRequest);
 
@@ -931,6 +934,6 @@ async function payToAddress(addr: string) {
 // payToAddress(
 //   "addr_test1qpwzf2m5v6asfh6zwm43qepax5qt4na4eutzlr87xle49u3gckxq0mxjqykxc6pmgn8fdy02nv8ahxuxsyj69tpf8q3s3xr02r",
 // );
-// main();
+main();
 // mintTestSplashTokens();
-createInflationBox();
+//createInflationBox();

@@ -49,7 +49,8 @@ export type NFTNames =
   | "perm_auth"
   | "proposal_auth"
   | "edao_msig"
-  | "ve_identifier";
+  | "ve_identifier"
+  | "inflation_auth";
 
 export type DeployedValidator = BuiltValidator & {
   referenceUtxo: UTxO;
