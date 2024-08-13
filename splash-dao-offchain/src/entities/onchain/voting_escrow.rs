@@ -30,11 +30,12 @@ use spectrum_offchain::{
 };
 use spectrum_offchain_cardano::parametrized_validators::apply_params_validator;
 
+use crate::constants::{MINT_WEIGHTING_POWER_SCRIPT, VOTING_ESCROW_SCRIPT};
 use crate::deployment::ProtocolValidator;
 use crate::entities::Snapshot;
 use crate::protocol_config::{GTAuthName, GTAuthPolicy, VEFactoryAuthName};
 use crate::{
-    constants::{MAX_LOCK_TIME_SECONDS, MINT_WEIGHTING_POWER_SCRIPT, VOTING_ESCROW_SCRIPT},
+    constants::MAX_LOCK_TIME_SECONDS,
     protocol_config::{NodeMagic, OperatorCreds, VEFactoryAuthPolicy},
     time::{NetworkTime, ProtocolEpoch},
 };

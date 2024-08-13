@@ -46,6 +46,7 @@ pub struct MintedTokens {
     pub proposal_auth: BuiltPolicy,
     pub edao_msig: BuiltPolicy,
     pub ve_identifier: BuiltPolicy,
+    pub inflation_auth: BuiltPolicy,
     pub gt: BuiltPolicy,
 }
 
@@ -67,6 +68,7 @@ pub enum ProtocolValidator {
     GovProxy,
     PermManager,
     WpAuthPolicy,
+    WeightingPower,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -109,6 +111,7 @@ pub struct ProtocolDeployment {
     pub gov_proxy: DeployedValidator<{ ProtocolValidator::GovProxy as u8 }>,
     pub perm_manager: DeployedValidator<{ ProtocolValidator::PermManager as u8 }>,
     pub mint_wpauth_token: DeployedValidator<{ ProtocolValidator::WpAuthPolicy as u8 }>,
+    pub weighting_power: DeployedValidator<{ ProtocolValidator::WeightingPower as u8 }>,
 }
 
 impl ProtocolDeployment {
@@ -123,6 +126,7 @@ impl ProtocolDeployment {
             gov_proxy: DeployedValidator::unsafe_pull(validators.gov_proxy, explorer).await,
             perm_manager: DeployedValidator::unsafe_pull(validators.perm_manager, explorer).await,
             mint_wpauth_token: DeployedValidator::unsafe_pull(validators.mint_wpauth_token, explorer).await,
+            weighting_power: DeployedValidator::unsafe_pull(validators.weighting_power, explorer).await,
         }
     }
 }

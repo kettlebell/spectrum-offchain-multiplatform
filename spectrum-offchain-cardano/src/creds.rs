@@ -53,7 +53,8 @@ pub fn operator_creds_base_address(
         StakeCredential::new_pub_key(stake_key_hash),
     )
     .to_address();
-    let reward_addr = RewardAddress::new(network_id, StakeCredential::new_pub_key(stake_key_hash));
+    // Change to payment key
+    let reward_addr = RewardAddress::new(network_id, StakeCredential::new_pub_key(payment_key_hash));
     let encoded_addr = addr.to_bech32(None).unwrap();
     let payment_cred = payment_key_hash.to_bech32("addr_vkh").unwrap().into();
     println!("PAYMENT_CRED raw bytes: {:?}", payment_key_hash);

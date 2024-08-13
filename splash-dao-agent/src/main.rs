@@ -17,6 +17,8 @@ use clap::Parser;
 use cml_chain::{
     address::RewardAddress,
     assets::AssetName,
+    certs::StakeCredential,
+    genesis::network_info::NetworkInfo,
     transaction::{Transaction, TransactionOutput},
     PolicyId,
 };
@@ -26,7 +28,7 @@ use config::AppConfig;
 use futures::{stream::select_all, FutureExt, Stream, StreamExt};
 use spectrum_cardano_lib::{
     constants::BABBAGE_ERA_ID, hash::hash_transaction_canonical, output::FinalizedTxOut,
-    transaction::OutboundTransaction,
+    transaction::OutboundTransaction, NetworkId,
 };
 use spectrum_offchain::{
     backlog::{persistence::BacklogStoreRocksDB, BacklogConfig, PersistentPriorityBacklog},
@@ -36,7 +38,7 @@ use spectrum_offchain::{
 };
 use spectrum_offchain_cardano::{
     collateral::pull_collateral,
-    creds::operator_creds_base_address,
+    creds::{operator_creds, operator_creds_base_address},
     prover::operator::OperatorProver,
     tx_submission::{tx_submission_agent_stream, TxSubmissionAgent},
 };
@@ -120,21 +122,21 @@ async fn main() {
 
     // We assume the batcher's private key is associated with a Cardano base address, which also
     // includes a reward address.
-    let (_, reward_address, payment_cred, operator_cred, operator_sk) =
-        operator_creds_base_address(config.batcher_private_key, 0);
+    let (operator_sk, operator_pkh, operator_cred) = operator_creds(config.batcher_private_key);
 
-    let collateral = pull_collateral(payment_cred, &explorer)
+    let reward_address = RewardAddress::new(
+        NetworkInfo::preprod().network_id(),
+        StakeCredential::new_pub_key(operator_sk.to_public().hash()),
+    );
+
+    let collateral = pull_collateral(operator_pkh, &explorer)
         .await
         .expect("Couldn't retrieve collateral");
-
-    let splash_policy =
-        PolicyId::from_hex("adf2425c138138efce80fd0b2ed8f227caf052f9ec44b8a92e942dfa").unwrap();
-    let splash_name = AssetName::from(spectrum_cardano_lib::AssetName::utf8_unsafe("SPLASH".into()));
 
     let node_magic: u8 = config.network_id.into();
     let protocol_config = ProtocolConfig {
         deployed_validators: protocol_deployment,
-        tokens: ProtocolTokens::from_minted_tokens(deployment.nfts, splash_policy, splash_name),
+        tokens: ProtocolTokens::from_minted_tokens(deployment.nfts),
         operator_sk: config.batcher_private_key.into(),
         node_magic: node_magic as u64,
         reward_address,

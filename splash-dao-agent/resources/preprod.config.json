@@ -2,17 +2,17 @@
   "chainSync": {
     "startingPoint": {
       "Specific": [
-        62660960,
-        "9b8092b1b9e2ce5f92194c33870b2fd0ab3fb04cb107466bdcc240e9ee42eff9"
+        67774844,
+        "bb86cdd36b9e62b3015a5f686d3be360fc284d47c2387f9f801d7d5787eea649"
       ]
     },
     "replayFromPoint": {
       "Specific": [
-        62660960,
-        "9b8092b1b9e2ce5f92194c33870b2fd0ab3fb04cb107466bdcc240e9ee42eff9"
+        67774844,
+        "bb86cdd36b9e62b3015a5f686d3be360fc284d47c2387f9f801d7d5787eea649"
       ]
     },
-    "disableRollbacksUntil": 55424270,
+    "disableRollbacksUntil": 67774844,
     "dbPath": "state"
   },
   "node": {
@@ -28,8 +28,8 @@
     "secs": 120,
     "nanos": 0
   },
-  "batcherPrivateKey": "xprv1uppg6pk8kn3rwvgvs7zx7hzuk6m6qvsj7llyhmrzvg9kht4whptx9xaav5n9s9ywz8aexgxmfh6jahmqpvg5v96h6ux7e6uxk9c9dj4psz5szq5np4tzv5vtrjj2jztxnyacdfrm9e4qelm45q882m67qqyns84k",
-  "genesisStartTime": 1000,
+  "batcherPrivateKey": "",
+  "genesisStartTime": 1723349688000,
   "orderBacklogConfig": { "db_path": "tmp/backlog" },
   "inflationBoxPersistenceConfig": { "db_path": "tmp/inflation" },
   "pollFactoryPersistenceConfig": { "db_path": "tmp/poll_factory" },
@@ -40,5 +40,5 @@
   "explorer": {
     "url": "https://explorer.spectrum.fi"
   },
-  "rewardAddress": "addr_test1qp97f7397q5aznqdwga0fg0xlfcn8lp6vy8csqek4459ewjmmfesg02r4kxltnn4vww0frsl9dz52spmayhszylrw5mstjywvz"
+  "rewardAddress": "addr_test1vpkywgfurw0y7mjt8tcpecuj32y00kjddrh8qvhveynm9cq00yek0"
 }

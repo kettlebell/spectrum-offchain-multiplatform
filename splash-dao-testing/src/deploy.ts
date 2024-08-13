@@ -44,18 +44,16 @@ const PREPROD_DEPLOYMENT_JSON_FILENAME = "preprod.deployment.json";
 const TX_CONFIRMATION_WAIT_TIME = 120000;
 
 const SPLASH_POLICY_ID =
-  "adf2425c138138efce80fd0b2ed8f227caf052f9ec44b8a92e942dfa";
+  "1fe45dd0068d71ec0b7a9c879328a47ea1fed028712d6effcc8ede0d";
 const SPLASH_ASSET_NAME = fromText("SPLASH");
 
-const ZEROTH_EPOCH_START = 1722580494n;
+const ZEROTH_EPOCH_START = 1723349688000n;
 const INFLATION_BOX_INITIAL_SPLASH_QTY = 32000000000000n;
 
 async function main() {
   // console.log(toHex(cbor.encode(new Uint8Array([]))));
   const lucid = await getLucid();
   const pubKey = await setupWallet(lucid);
-  const address = await lucid.wallet.address;
-  console.log("wallet address: ", address);
 
   // SPECIFY SETTINGS HERE -------------------------------------------------------------------------
 
@@ -506,7 +504,7 @@ async function deployValidators(
     )
     .payToAddressWithData(
       lockScript,
-      { scriptRef: builtValidators.mintVECompositionToken.script },
+      { scriptRef: builtValidators.veFactory.script },
       {},
     )
     .complete();
@@ -521,17 +519,17 @@ async function deployValidators(
     .newTx()
     .payToAddressWithData(
       lockScript,
-      { scriptRef: builtValidators.veFactory.script },
-      {},
-    )
-    .payToAddressWithData(
-      lockScript,
       { scriptRef: builtValidators.govProxy.script },
       {},
     )
     .payToAddressWithData(
       lockScript,
       { scriptRef: builtValidators.permManager.script },
+      {},
+    )
+    .payToAddressWithData(
+      lockScript,
+      { scriptRef: builtValidators.mintWPAuthToken.script },
       {},
     )
     .complete();
@@ -547,7 +545,7 @@ async function deployValidators(
     .newTx()
     .payToAddressWithData(
       lockScript,
-      { scriptRef: builtValidators.mintWPAuthToken.script },
+      { scriptRef: builtValidators.mintVECompositionToken.script },
       {},
     )
     .payToAddressWithData(
@@ -594,6 +592,8 @@ async function createEntities(
 
   const qty = 10000000n;
 
+  const splashToken = SPLASH_POLICY_ID + SPLASH_ASSET_NAME;
+
   const tx = await lucid.newTx()
     .readFrom([
       dv.inflation.referenceUtxo,
@@ -606,15 +606,20 @@ async function createEntities(
     ])
     .payToContract(
       toAddr(dv.inflation.hash),
-      Data.to(daoInput.inflation, InflationInflation.epoch),
-      { lovelace: qty, [inflationAuthToken]: 1n },
+      { inline: Data.to(daoInput.inflation, InflationInflation.epoch) },
+      {
+        lovelace: qty,
+        [inflationAuthToken]: 1n,
+        [splashToken]: INFLATION_BOX_INITIAL_SPLASH_QTY,
+      },
     )
     .payToContract(
       toAddr(dv.votingEscrow.hash),
-      Data.to(daoInput.votingEscrow, VotingEscrowVotingEscrow.state),
+      {
+        inline: Data.to(daoInput.votingEscrow, VotingEscrowVotingEscrow.state),
+      },
       {
         lovelace: qty,
-        [veFactoryAuthToken]: 1n,
         [gtToken]: BigInt(nftDetails.gt.quantity),
       },
     )
@@ -625,13 +630,15 @@ async function createEntities(
     )
     .payToContract(
       toAddr(dv.wpFactory.hash),
-      Data.to(daoInput.wpFactory, WeightingPollWpFactory.state),
+      {
+        inline: Data.to(daoInput.wpFactory, WeightingPollWpFactory.state),
+      },
       { lovelace: qty },
     )
     .payToContract(
       toAddr(dv.veFactory.hash),
-      Data.to(daoInput.veFactory, VeFactoryVeFactory.conf),
-      { lovelace: qty },
+      { inline: Data.to(daoInput.veFactory, VeFactoryVeFactory.conf) },
+      { lovelace: qty, [veFactoryAuthToken]: 1n },
     )
     .payToAddress(
       toAddr(dv.govProxy.hash),
@@ -906,7 +913,7 @@ async function mintTestSplashTokens() {
   console.log("SPLASH policy id: " + policyId);
 
   const tx = await lucid.newTx()
-    .mintAssets({ [unit]: 32000000000000n })
+    .mintAssets({ [unit]: INFLATION_BOX_INITIAL_SPLASH_QTY })
     .validTo(Date.now() + 200000)
     .attachMintingPolicy(mintingPolicy)
     .complete();
@@ -921,7 +928,7 @@ async function mintTestSplashTokens() {
 async function payToAddress(addr: string) {
   const lucid = await getLucid();
   const _ = await setupWallet(lucid);
-  const tx = await lucid.newTx().payToAddress(addr, { lovelace: 8500000000n })
+  const tx = await lucid.newTx().payToAddress(addr, { lovelace: 4810000000n })
     .complete();
   const signedTx = await tx.sign().complete();
 
@@ -931,9 +938,9 @@ async function payToAddress(addr: string) {
 }
 
 // generateSeed();
-// payToAddress(
-//   "addr_test1qpwzf2m5v6asfh6zwm43qepax5qt4na4eutzlr87xle49u3gckxq0mxjqykxc6pmgn8fdy02nv8ahxuxsyj69tpf8q3s3xr02r",
-// );
+//payToAddress(
+//  "addr_test1qr02lf68hu4n4t5wdgfkn0ddql36z8jr060ytc4e0gscy57qc3u5cmx09wr5wkwngx5gvrmjppaatgdqj5c8v3q406sszrxkn6",
+//);
 main();
 // mintTestSplashTokens();
 //createInflationBox();

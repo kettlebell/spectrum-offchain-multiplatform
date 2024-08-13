@@ -90,6 +90,7 @@ pub struct DeployedValidatorRef {
     /// Consider a batch witness script: first invokation costs `cost`,
     /// each subsequent invokation adds `marginal_cost` to base cost.
     pub marginal_cost: Option<ExUnits>,
+    pub script: Script,
 }
 
 #[derive(serde::Deserialize)]

@@ -12,7 +12,7 @@ use cml_chain::builders::witness_builder::{PartialPlutusWitness, PlutusScriptWit
 use cml_chain::plutus::RedeemerTag;
 use cml_chain::transaction::{TransactionInput, TransactionOutput};
 use cml_chain::utils::BigInteger;
-use cml_chain::OrderedHashMap;
+use cml_chain::{OrderedHashMap, PolicyId};
 use cml_crypto::{blake2b256, RawBytesEncoding, TransactionHash};
 use spectrum_offchain::data::event::{Predicted, Traced};
 use spectrum_offchain_cardano::deployment::DeployedScriptInfo;
@@ -23,21 +23,20 @@ use spectrum_cardano_lib::hash::hash_transaction_canonical;
 use spectrum_cardano_lib::plutus_data::IntoPlutusData;
 use spectrum_cardano_lib::protocol_params::constant_tx_builder;
 use spectrum_cardano_lib::transaction::TransactionOutputExtension;
-use spectrum_cardano_lib::{AssetName, OutputRef};
+use spectrum_cardano_lib::{AssetClass, AssetName, OutputRef};
 use spectrum_offchain::data::Has;
 use spectrum_offchain::ledger::IntoLedger;
+use uplc::PlutusData;
+use uplc_pallas_primitives::Fragment;
 
 use crate::assets::SPLASH_AC;
 use crate::constants::{self};
 use crate::deployment::ProtocolValidator;
 use crate::entities::offchain::voting_order::VotingOrder;
-use crate::entities::onchain::inflation_box::{
-    compute_inflation_box_script_hash, unsafe_update_ibox_state, INFLATION_BOX_EX_UNITS,
-};
+use crate::entities::onchain::inflation_box::{unsafe_update_ibox_state, INFLATION_BOX_EX_UNITS};
 use crate::entities::onchain::permission_manager::{compute_perm_manager_policy_id, PERM_MANAGER_EX_UNITS};
 use crate::entities::onchain::poll_factory::{
-    compute_wp_factory_script_hash, unsafe_update_factory_state, FactoryRedeemer, PollFactoryAction,
-    GOV_PROXY_EX_UNITS, WP_FACTORY_EX_UNITS,
+    unsafe_update_factory_state, FactoryRedeemer, PollFactoryAction, GOV_PROXY_EX_UNITS, WP_FACTORY_EX_UNITS,
 };
 use crate::entities::onchain::smart_farm::{self, compute_mint_farm_auth_token_policy_id, FARM_EX_UNITS};
 use crate::entities::onchain::voting_escrow::{
@@ -52,10 +51,10 @@ use crate::entities::onchain::weighting_poll::{
 use crate::entities::Snapshot;
 use crate::protocol_config::{
     EDaoMSigAuthPolicy, FactoryAuthPolicy, FarmAuthPolicy, FarmAuthRefScriptOutput, GTAuthPolicy,
-    InflationBoxRefScriptOutput, NodeMagic, OperatorCreds, PermManagerAuthPolicy,
-    PermManagerBoxRefScriptOutput, PollFactoryRefScriptOutput, Reward, SplashPolicy, VEFactoryAuthPolicy,
-    VotingEscrowRefScriptOutput, WPAuthPolicy, WPAuthRefScriptOutput, WeightingPowerRefScriptOutput,
-    TX_FEE_CORRECTION,
+    GovProxyRefScriptOutput, InflationAuthPolicy, InflationBoxRefScriptOutput, NodeMagic, OperatorCreds,
+    PermManagerAuthPolicy, PermManagerBoxRefScriptOutput, PollFactoryRefScriptOutput, Reward, SplashPolicy,
+    VEFactoryAuthPolicy, VotingEscrowPolicy, VotingEscrowRefScriptOutput, WPAuthPolicy,
+    WPAuthRefScriptOutput, WeightingPowerPolicy, WeightingPowerRefScriptOutput, TX_FEE_CORRECTION,
 };
 use crate::GenesisEpochStartTime;
 
@@ -118,6 +117,7 @@ where
         + Has<Collateral>
         + Has<SplashPolicy>
         + Has<InflationBoxRefScriptOutput>
+        + Has<InflationAuthPolicy>
         + Has<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>
         + Has<PollFactoryRefScriptOutput>
         + Has<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>
@@ -128,8 +128,10 @@ where
         + Has<FactoryAuthPolicy>
         + Has<VEFactoryAuthPolicy>
         + Has<VotingEscrowRefScriptOutput>
+        + Has<WeightingPowerPolicy>
         + Has<WeightingPowerRefScriptOutput>
         + Has<PermManagerBoxRefScriptOutput>
+        + Has<GovProxyRefScriptOutput>
         + Has<EDaoMSigAuthPolicy>
         + Has<PermManagerAuthPolicy>
         + Has<GTAuthPolicy>
@@ -150,6 +152,12 @@ where
     ) {
         let mut tx_builder = constant_tx_builder();
 
+        // Set TX validity range
+        let current_posix_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let start_slot = 67772807; //67580376;
+        tx_builder.set_validity_start_interval(start_slot);
+        tx_builder.set_ttl(start_slot + 43200);
+
         let wpoll_auth_policy = self.ctx.select::<WPAuthPolicy>().0;
         let splash_policy = self.ctx.select::<SplashPolicy>().0;
         let genesis_time = self.ctx.select::<GenesisEpochStartTime>().0;
@@ -157,16 +165,17 @@ where
 
         // Note that we're not actually minting weighting power here. We only need the minting
         // policy id as part of the inflation box's script.
-        let weighting_power_policy = compute_mint_weighting_power_policy_id(
-            self.ctx.select::<GenesisEpochStartTime>().0,
-            wpoll_auth_policy,
-            self.ctx.select::<GTAuthPolicy>().0,
-        );
+        //let weighting_power_policy = compute_mint_weighting_power_policy_id(
+        //self.ctx.select::<GenesisEpochStartTime>().0,
+        //wpoll_auth_policy,
+        //self.ctx.select::<GTAuthPolicy>().0,
+        //);
 
         let inflation_script_hash = self
             .ctx
             .select::<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>()
             .script_hash;
+        println!("inflation_script_hash: {}", inflation_script_hash.to_hex());
         let inflation_script = PartialPlutusWitness::new(
             PlutusScriptWitness::Ref(inflation_script_hash),
             cml_chain::plutus::PlutusData::Integer(BigInteger::from(0)),
@@ -182,11 +191,15 @@ where
         let inflation_input_tx_hash = inflation_input.input.transaction_id;
 
         tx_builder.add_reference_input(self.ctx.select::<InflationBoxRefScriptOutput>().0.clone());
-        tx_builder.add_input(inflation_input).unwrap();
 
         let prev_ib_version = *inflation_box.version();
         let (next_inflation_box, emission_rate) = inflation_box.get().release_next_tranche();
         let mut inflation_box_out = inflation_box_in.clone();
+        let mut amount = inflation_box_out.amount().clone();
+
+        // HACK
+        amount.coin -= (1990155 + 528 + 17416);
+        inflation_box_out.set_amount(amount);
         if let Some(data_mut) = inflation_box_out.data_mut() {
             unsafe_update_ibox_state(data_mut, next_inflation_box.last_processed_epoch);
         }
@@ -195,18 +208,15 @@ where
         tx_builder.add_output(inflation_output).unwrap();
 
         // WP factory
-        let gov_witness_script_hash = self
-            .ctx
-            .select::<DeployedScriptInfo<{ ProtocolValidator::GovProxy as u8 }>>()
-            .script_hash;
 
         let wp_factory_script_hash = self
             .ctx
             .select::<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>()
             .script_hash;
+        println!("wp_factory_script_hash: {}", wp_factory_script_hash.to_hex());
 
         let factory_redeemer = FactoryRedeemer {
-            successor_ix: 1,
+            successor_ix: 2,
             action: PollFactoryAction::CreatePoll,
         };
         let wp_factory_script = PartialPlutusWitness::new(
@@ -222,7 +232,6 @@ where
         let wp_factory_input_tx_hash = wp_factory_input.input.transaction_id;
 
         tx_builder.add_reference_input(self.ctx.select::<PollFactoryRefScriptOutput>().0.clone());
-        tx_builder.add_input(wp_factory_input).unwrap();
 
         let prev_factory_version = *factory.version();
         let (next_factory, fresh_wpoll) = factory.unwrap().next_weighting_poll(emission_rate);
@@ -232,6 +241,8 @@ where
         }
 
         let mint_action = if inflation_input_tx_hash < wp_factory_input_tx_hash {
+            tx_builder.add_input(inflation_input).unwrap();
+            tx_builder.add_input(wp_factory_input).unwrap();
             tx_builder.set_exunits(
                 RedeemerWitnessKey::new(RedeemerTag::Spend, 0),
                 INFLATION_BOX_EX_UNITS,
@@ -240,8 +251,13 @@ where
                 RedeemerWitnessKey::new(RedeemerTag::Spend, 1),
                 WP_FACTORY_EX_UNITS,
             );
-            MintAction::MintAuthToken { factory_in_ix: 1 }
+            MintAction::MintAuthToken {
+                factory_in_ix: 1,
+                inflation_box_in_ix: 0,
+            }
         } else {
+            tx_builder.add_input(wp_factory_input).unwrap();
+            tx_builder.add_input(inflation_input).unwrap();
             tx_builder.set_exunits(
                 RedeemerWitnessKey::new(RedeemerTag::Spend, 0),
                 WP_FACTORY_EX_UNITS,
@@ -250,15 +266,23 @@ where
                 RedeemerWitnessKey::new(RedeemerTag::Spend, 1),
                 INFLATION_BOX_EX_UNITS,
             );
-            MintAction::MintAuthToken { factory_in_ix: 0 }
+            MintAction::MintAuthToken {
+                factory_in_ix: 0,
+                inflation_box_in_ix: 1,
+            }
         };
 
-        // Mint wp_auth token
+        // Mint wp_auth token TODO: don't need to compute, it's in deployment
         let mint_wp_auth_token_script_hash = compute_mint_wp_auth_token_policy_id(
             splash_policy,
             farm_auth_policy,
             self.ctx.select::<FactoryAuthPolicy>().0,
+            self.ctx.select::<InflationAuthPolicy>().0,
             genesis_time,
+        );
+        println!(
+            "mint_wp_auth_token_script_hash: {}",
+            mint_wp_auth_token_script_hash.to_hex()
         );
         let mint_wp_auth_token_witness = PartialPlutusWitness::new(
             PlutusScriptWitness::Ref(mint_wp_auth_token_script_hash),
@@ -266,9 +290,17 @@ where
         );
         let OperatorCreds(_operator_sk, operator_pkh, _operator_addr) = self.ctx.select::<OperatorCreds>();
 
+        println!("operator_addr: {:?}", _operator_addr.to_bech32(None));
+        println!("operator_pkh: {}", operator_pkh.to_hex());
+        println!(
+            "inflation_box.last_processed_epoch: {}",
+            inflation_box.get().last_processed_epoch
+        );
+        // Compute index_tn(epoch), where `epoch` is the current epoch
         let asset = compute_epoch_asset_name(inflation_box.get().last_processed_epoch);
+        println!("mint_wp_auth_token name: {}", hex::encode(&asset.inner));
         let wp_auth_minting_policy = SingleMintBuilder::new_single_asset(asset.clone(), 1)
-            .plutus_script(mint_wp_auth_token_witness, vec![operator_pkh]);
+            .plutus_script(mint_wp_auth_token_witness, vec![]);
         tx_builder.add_reference_input(self.ctx.select::<WPAuthRefScriptOutput>().0.clone());
         tx_builder.add_mint(wp_auth_minting_policy).unwrap();
         tx_builder.set_exunits(
@@ -283,20 +315,26 @@ where
         let ord_hash_map = OrderedHashMap::from_iter(vec![(mint_wp_auth_token_script_hash, asset_pair)]);
         match &mut wpoll_out {
             TransactionOutput::AlonzoFormatTxOut(tx_out) => {
-                tx_out
+                let multiasset = tx_out
                     .amount
                     .multiasset
                     .checked_add(&AssetBundle::from(ord_hash_map))
                     .unwrap();
+                tx_out.amount.multiasset = multiasset;
+                println!("AlonzoFormatTxOut coin: {}", tx_out.amount.coin);
             }
+
             TransactionOutput::ConwayFormatTxOut(tx_out) => {
-                tx_out
+                let multiasset = tx_out
                     .amount
                     .multiasset
                     .checked_add(&AssetBundle::from(ord_hash_map))
                     .unwrap();
+                tx_out.amount.multiasset = multiasset;
+                println!("ConwayFormatTxOut coin: {}", tx_out.amount.coin);
             }
         }
+
         let weighting_poll_output = SingleOutputBuilderResult::new(wpoll_out.clone());
         tx_builder.add_output(weighting_poll_output).unwrap();
 
@@ -305,18 +343,23 @@ where
 
         // Set Governance Proxy witness script
         let reward_address = self.ctx.select::<Reward>().0.clone();
-        let gp_witness = PartialPlutusWitness::new(
-            PlutusScriptWitness::Ref(gov_witness_script_hash),
-            cml_chain::plutus::PlutusData::new_list(vec![]), // dummy value (this validator doesn't require redeemer)
-        );
-        let withdrawal_result = SingleWithdrawalBuilder::new(reward_address.clone(), 0)
-            .plutus_script(gp_witness, vec![])
-            .unwrap();
-        tx_builder.add_withdrawal(withdrawal_result);
-        tx_builder.set_exunits(
-            RedeemerWitnessKey::new(RedeemerTag::Reward, 0),
-            GOV_PROXY_EX_UNITS,
-        );
+        //let gov_witness_script_hash = self
+        //    .ctx
+        //    .select::<DeployedScriptInfo<{ ProtocolValidator::GovProxy as u8 }>>()
+        //    .script_hash;
+        //let gp_witness = PartialPlutusWitness::new(
+        //    PlutusScriptWitness::Ref(gov_witness_script_hash),
+        //    cml_chain::plutus::PlutusData::new_list(vec![]), // dummy value (this validator doesn't require redeemer)
+        //);
+        //let withdrawal_result = SingleWithdrawalBuilder::new(reward_address.clone(), 0)
+        //    .plutus_script(gp_witness, vec![])
+        //    .unwrap();
+        //tx_builder.add_reference_input(self.ctx.select::<GovProxyRefScriptOutput>().0.clone());
+        //tx_builder.add_withdrawal(withdrawal_result);
+        //tx_builder.set_exunits(
+        //    RedeemerWitnessKey::new(RedeemerTag::Reward, 0),
+        //    GOV_PROXY_EX_UNITS,
+        //);
 
         tx_builder
             .add_collateral(InputBuilderResult::from(self.ctx.select::<Collateral>()))
@@ -378,12 +421,14 @@ where
         let genesis_time = self.ctx.select::<GenesisEpochStartTime>().0;
         let farm_auth_policy = self.ctx.select::<FarmAuthPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
+        let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
         let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
 
         let weighting_poll_script_hash = compute_mint_wp_auth_token_policy_id(
             splash_policy,
             farm_auth_policy,
             factory_auth_policy,
+            inflation_box_auth_policy,
             genesis_time,
         );
 
@@ -472,6 +517,7 @@ where
         let voting_escrow_ref_script = self.ctx.select::<VotingEscrowRefScriptOutput>().0;
         let wpoll_auth_policy = self.ctx.select::<WPAuthPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
+        let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
         let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
         let weighting_power_ref_script = self.ctx.select::<WeightingPowerRefScriptOutput>().0;
 
@@ -498,6 +544,7 @@ where
             splash_policy,
             farm_auth_policy,
             factory_auth_policy,
+            inflation_box_auth_policy,
             genesis_time,
         );
         let weighting_poll_script = PartialPlutusWitness::new(
@@ -676,6 +723,7 @@ where
         let farm_auth_policy = self.ctx.select::<FarmAuthPolicy>().0;
         let splash_policy = self.ctx.select::<SplashPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
+        let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
         let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
         let smart_farm_ref_script = self.ctx.select::<FarmAuthRefScriptOutput>().0;
         let edao_msig_policy = self.ctx.select::<EDaoMSigAuthPolicy>().0;
@@ -695,6 +743,7 @@ where
             splash_policy,
             farm_auth_policy,
             factory_auth_policy,
+            inflation_box_auth_policy,
             genesis_time,
         );
 
@@ -762,8 +811,12 @@ where
                             perm_manager_input_ix,
                         },
                     };
-                    let smart_farm_script_hash =
-                        compute_mint_farm_auth_token_policy_id(splash_policy, factory_auth_policy);
+                    let farm_auth_policy = self.ctx.select::<FarmAuthPolicy>().0.to_hex();
+                    let smart_farm_script_hash = compute_mint_farm_auth_token_policy_id(
+                        &farm_auth_policy,
+                        splash_policy,
+                        factory_auth_policy,
+                    );
                     let smart_farm_script = PartialPlutusWitness::new(
                         PlutusScriptWitness::Ref(smart_farm_script_hash),
                         redeemer.into_pd(),
@@ -877,9 +930,11 @@ where
 }
 
 pub fn compute_epoch_asset_name(epoch: u32) -> cml_chain::assets::AssetName {
-    let mut buffer = [0u8; 128];
-    minicbor::encode(epoch, buffer.as_mut()).unwrap();
-    let token_name = blake2b256(buffer.as_ref());
+    let i = uplc_pallas_codec::utils::Int::from(epoch as i64);
+    let bytes = PlutusData::BigInt(uplc_pallas_primitives::alonzo::BigInt::Int(i))
+        .encode_fragment()
+        .unwrap();
+    let token_name = blake2b256(bytes.as_ref());
     cml_chain::assets::AssetName::new(token_name.to_vec()).unwrap()
 }
 
@@ -894,11 +949,13 @@ mod tests {
         let splash_policy = create_dummy_policy_id(0);
         let farm_auth_policy = create_dummy_policy_id(1);
         let factory_auth_policy = create_dummy_policy_id(2);
+        let inflation_box_auth_policy = create_dummy_policy_id(3);
         let zeroth_epoch_start = 100;
         let _ = compute_mint_wp_auth_token_policy_id(
             splash_policy,
             farm_auth_policy,
             factory_auth_policy,
+            inflation_box_auth_policy,
             zeroth_epoch_start,
         );
     }

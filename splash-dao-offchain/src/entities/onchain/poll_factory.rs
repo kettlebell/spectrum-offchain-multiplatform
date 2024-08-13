@@ -17,7 +17,6 @@ use spectrum_offchain_cardano::parametrized_validators::apply_params_validator;
 use uplc_pallas_codec::utils::PlutusBytes;
 
 use crate::assets::Splash;
-use crate::constants::WP_FACTORY_SCRIPT;
 use crate::deployment::ProtocolValidator;
 use crate::entities::onchain::smart_farm::FarmId;
 use crate::entities::onchain::weighting_poll::WeightingPoll;
@@ -78,11 +77,11 @@ where
     fn try_from_ledger(repr: &BabbageTransactionOutput, ctx: &C) -> Option<Self> {
         if test_address(repr.address(), ctx) {
             let output_ref = ctx.select::<OutputRef>();
+            let datum = repr.datum()?;
             let PollFactoryConfig {
                 last_poll_epoch,
                 active_farms,
-            } = repr
-                .datum()?
+            } = datum
                 .into_pd()
                 .map(|pd| PollFactoryConfig::try_from_pd(pd).unwrap())?;
 
@@ -173,6 +172,7 @@ pub const GOV_PROXY_EX_UNITS: ExUnits = ExUnits {
 };
 
 pub fn compute_wp_factory_script_hash(
+    script: &str,
     wp_auth_policy: PolicyId,
     gov_witness_script_hash: ScriptHash,
 ) -> ScriptHash {
@@ -180,7 +180,7 @@ pub fn compute_wp_factory_script_hash(
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(wp_auth_policy.to_raw_bytes().to_vec())),
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(gov_witness_script_hash.to_raw_bytes().to_vec())),
     ]);
-    apply_params_validator(params_pd, WP_FACTORY_SCRIPT)
+    apply_params_validator(params_pd, script)
 }
 
 pub struct PollFactoryConfig {

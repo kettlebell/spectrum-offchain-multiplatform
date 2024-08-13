@@ -15,7 +15,7 @@ use spectrum_offchain_cardano::parametrized_validators::apply_params_validator;
 use uplc_pallas_codec::utils::{Int, PlutusBytes};
 
 use crate::assets::Splash;
-use crate::constants::{INFLATION_SCRIPT, SPLASH_NAME};
+use crate::constants::SPLASH_NAME;
 use crate::deployment::ProtocolValidator;
 use crate::entities::Snapshot;
 use crate::protocol_config::{SplashAssetName, SplashPolicy};
@@ -102,15 +102,17 @@ where
             println!("INFLATION_BOX ADDR OK!!");
             let value = repr.value().clone();
             println!("aaa");
-            let epoch = repr.datum()?.into_pd()?.into_u64()?;
-            println!("bbb");
+            let datum = repr.datum()?;
+            println!("bbb: datum: {:?}", datum);
+            let epoch = datum.into_pd()?.into_u64()?;
+            println!("ccc");
             let splash = value.multiasset.get(
                 &ctx.select::<SplashPolicy>().0,
                 &ctx.select::<SplashAssetName>().0,
             )?;
-            println!("ccc");
-            let script_hash = repr.script_hash()?;
             println!("ddd");
+            let script_hash = repr.script_hash()?;
+            println!("eee");
 
             let inflation_box = InflationBox {
                 last_processed_epoch: epoch as u32,
@@ -136,6 +138,7 @@ pub const INFLATION_BOX_EX_UNITS: ExUnits = ExUnits {
 };
 
 pub fn compute_inflation_box_script_hash(
+    script: &str,
     splash_policy: PolicyId,
     wp_auth_policy: PolicyId,
     weighting_power_policy: PolicyId,
@@ -147,7 +150,7 @@ pub fn compute_inflation_box_script_hash(
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(weighting_power_policy.to_raw_bytes().to_vec())),
         uplc::PlutusData::BigInt(uplc::BigInt::Int(Int::from(zeroth_epoch_start as i64))),
     ]);
-    apply_params_validator(params_pd, INFLATION_SCRIPT)
+    apply_params_validator(params_pd, script)
 }
 
 #[cfg(test)]

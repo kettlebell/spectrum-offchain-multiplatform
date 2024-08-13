@@ -4,13 +4,15 @@ use cml_chain::assets::AssetName;
 use cml_chain::builders::tx_builder::TransactionUnspentOutput;
 use cml_chain::certs::StakeCredential;
 use cml_chain::PolicyId;
-use cml_crypto::{Bip32PrivateKey, Ed25519KeyHash, PrivateKey};
+use cml_crypto::{Bip32PrivateKey, Ed25519KeyHash, PrivateKey, ScriptHash};
 use spectrum_cardano_lib::collateral::Collateral;
+use spectrum_cardano_lib::AssetClass;
 use spectrum_offchain::data::Has;
 use spectrum_offchain_cardano::creds::operator_creds;
 use spectrum_offchain_cardano::deployment::DeployedScriptInfo;
 use type_equalities::IsEqual;
 
+use crate::assets::SPLASH_AC;
 use crate::deployment::{DeployedValidators, MintedTokens, ProtocolDeployment, ProtocolValidator};
 use crate::entities::onchain::inflation_box::InflationBoxId;
 use crate::entities::onchain::permission_manager::PermManagerId;
@@ -38,29 +40,27 @@ impl ProtocolConfig {
 
 #[derive(Clone)]
 pub struct ProtocolTokens {
-    pub splash_policy: PolicyId,
-    pub splash_name: AssetName,
     pub factory_auth_policy: PolicyId,
     pub ve_factory_auth_policy: PolicyId,
     pub ve_factory_auth_name: AssetName,
     pub edao_msig_policy: PolicyId,
     pub perm_manager_auth_policy: PolicyId,
     pub perm_manager_auth_name: AssetName,
+    pub inflation_box_auth_policy: PolicyId,
     pub gt_policy: PolicyId,
     pub gt_name: AssetName,
 }
 
 impl ProtocolTokens {
-    pub fn from_minted_tokens(value: MintedTokens, splash_policy: PolicyId, splash_name: AssetName) -> Self {
+    pub fn from_minted_tokens(value: MintedTokens) -> Self {
         Self {
-            splash_policy,
-            splash_name,
             factory_auth_policy: value.factory_auth.policy_id,
             ve_factory_auth_policy: value.ve_factory_auth.policy_id,
             ve_factory_auth_name: value.ve_factory_auth.asset_name,
             edao_msig_policy: value.edao_msig.policy_id,
             perm_manager_auth_policy: value.perm_auth.policy_id,
             perm_manager_auth_name: value.perm_auth.asset_name,
+            inflation_box_auth_policy: value.inflation_auth.policy_id,
             gt_policy: value.gt.policy_id,
             gt_name: value.gt.asset_name,
         }
@@ -69,6 +69,9 @@ impl ProtocolTokens {
 
 #[derive(Debug, Clone)]
 pub struct InflationBoxRefScriptOutput(pub TransactionUnspentOutput);
+
+#[derive(Debug, Clone)]
+pub struct InflationAuthPolicy(pub PolicyId);
 
 #[derive(Debug, Clone)]
 pub struct Reward(pub cml_chain::address::RewardAddress);
@@ -105,6 +108,12 @@ pub struct VEFactoryAuthName(pub AssetName);
 
 #[derive(Debug, Clone)]
 pub struct VotingEscrowRefScriptOutput(pub TransactionUnspentOutput);
+
+#[derive(Debug, Clone)]
+pub struct VotingEscrowPolicy(pub PolicyId);
+
+#[derive(Debug, Clone)]
+pub struct WeightingPowerPolicy(pub PolicyId);
 
 #[derive(Debug, Clone)]
 pub struct WeightingPowerRefScriptOutput(pub TransactionUnspentOutput);
@@ -149,19 +158,25 @@ impl Has<Collateral> for ProtocolConfig {
 
 impl Has<SplashPolicy> for ProtocolConfig {
     fn select<U: IsEqual<SplashPolicy>>(&self) -> SplashPolicy {
-        SplashPolicy(self.tokens.splash_policy)
+        SplashPolicy(get_splash_token().0)
     }
 }
 
 impl Has<SplashAssetName> for ProtocolConfig {
     fn select<U: IsEqual<SplashAssetName>>(&self) -> SplashAssetName {
-        SplashAssetName(self.tokens.splash_name.clone())
+        SplashAssetName(get_splash_token().1)
     }
 }
 
 impl Has<InflationBoxRefScriptOutput> for ProtocolConfig {
     fn select<U: IsEqual<InflationBoxRefScriptOutput>>(&self) -> InflationBoxRefScriptOutput {
         InflationBoxRefScriptOutput(self.deployed_validators.inflation.reference_utxo.clone())
+    }
+}
+
+impl Has<InflationAuthPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<InflationAuthPolicy>>(&self) -> InflationAuthPolicy {
+        InflationAuthPolicy(self.tokens.inflation_box_auth_policy)
     }
 }
 
@@ -220,9 +235,21 @@ impl Has<VotingEscrowRefScriptOutput> for ProtocolConfig {
     }
 }
 
+impl Has<VotingEscrowPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<VotingEscrowPolicy>>(&self) -> VotingEscrowPolicy {
+        VotingEscrowPolicy(self.deployed_validators.voting_escrow.hash)
+    }
+}
+
+impl Has<WeightingPowerPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<WeightingPowerPolicy>>(&self) -> WeightingPowerPolicy {
+        WeightingPowerPolicy(self.deployed_validators.weighting_power.hash)
+    }
+}
+
 impl Has<WeightingPowerRefScriptOutput> for ProtocolConfig {
     fn select<U: IsEqual<WeightingPowerRefScriptOutput>>(&self) -> WeightingPowerRefScriptOutput {
-        todo!()
+        WeightingPowerRefScriptOutput(self.deployed_validators.weighting_power.reference_utxo.clone())
     }
 }
 
@@ -349,3 +376,11 @@ impl Has<DeployedScriptInfo<{ ProtocolValidator::SmartFarm as u8 }>> for Protoco
 }
 
 pub const TX_FEE_CORRECTION: u64 = 1000;
+
+fn get_splash_token() -> (PolicyId, AssetName) {
+    if let spectrum_cardano_lib::AssetClass::Token((policy_id, name)) = *SPLASH_AC {
+        (policy_id, AssetName::from(name))
+    } else {
+        panic!("Splash token can't be a native asset")
+    }
+}

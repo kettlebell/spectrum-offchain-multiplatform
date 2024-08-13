@@ -595,19 +595,21 @@ where
             } => {
                 let mut outputs = tx.body.outputs;
                 let num_outputs = outputs.len();
-                let mut ix = num_outputs - 1;
-                while let Some(output) = outputs.pop() {
-                    let output_ref = OutputRef::new(tx_hash, ix as u64);
-                    let ctx = WithOutputRef {
-                        behaviour: self,
-                        output_ref,
-                    };
-                    if let Some(entity) = DaoEntitySnapshot::try_from_ledger(&output, &ctx) {
-                        println!("entity found: {:?}", entity);
-                        self.confirm_entity(Bundled(entity, output.upcast())).await;
-                    }
+                if num_outputs > 0 {
+                    let mut ix = num_outputs - 1;
+                    while let Some(output) = outputs.pop() {
+                        let output_ref = OutputRef::new(tx_hash, ix as u64);
+                        let ctx = WithOutputRef {
+                            behaviour: self,
+                            output_ref,
+                        };
+                        if let Some(entity) = DaoEntitySnapshot::try_from_ledger(&output, &ctx) {
+                            println!("entity found: {:?}", entity);
+                            self.confirm_entity(Bundled(entity, output.upcast())).await;
+                        }
 
-                    ix = ix.saturating_sub(1);
+                        ix = ix.saturating_sub(1);
+                    }
                 }
             }
             LedgerTxEvent::TxUnapplied((tx_hash, tx)) => {

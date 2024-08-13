@@ -6,7 +6,9 @@ use cml_crypto::blake2b256;
 use log::{trace, warn};
 use pallas_network::miniprotocols::handshake::RefuseReason;
 use pallas_network::miniprotocols::localtxsubmission::cardano_node_errors::ApplyTxError;
-use pallas_network::miniprotocols::localtxsubmission::{EraTx, NodeErrorDecoder, Response};
+use pallas_network::miniprotocols::localtxsubmission::{
+    CBORErrorBytes, EraTx, NodeError, NodeErrorDecoder, Response,
+};
 use pallas_network::miniprotocols::{
     handshake, localtxsubmission, PROTOCOL_N2C_HANDSHAKE, PROTOCOL_N2C_TX_SUBMISSION,
 };
@@ -52,7 +54,7 @@ impl<'a, const ERA: u16, Tx> LocalTxSubmissionClient<'a, ERA, Tx> {
         })
     }
 
-    pub async fn submit_tx(&mut self, tx: Tx) -> Result<Response<Vec<ApplyTxError>>, Error>
+    pub async fn submit_tx(&mut self, tx: Tx) -> Result<Response<NodeError>, Error>
     where
         Tx: Serialize,
     {

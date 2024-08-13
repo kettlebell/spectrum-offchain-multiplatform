@@ -28,7 +28,7 @@ use crate::deployment::ProtocolValidator;
 use crate::entities::onchain::smart_farm::FarmId;
 use crate::entities::onchain::voting_escrow::compute_mint_weighting_power_policy_id;
 use crate::entities::Snapshot;
-use crate::protocol_config::{GTAuthPolicy, NodeMagic, SplashPolicy, WPAuthPolicy};
+use crate::protocol_config::{GTAuthPolicy, NodeMagic, SplashPolicy, WPAuthPolicy, WeightingPowerPolicy};
 use crate::routines::inflation::actions::compute_epoch_asset_name;
 use crate::time::{epoch_end, epoch_start, NetworkTime, ProtocolEpoch};
 use crate::{CurrentEpoch, GenesisEpochStartTime};
@@ -77,20 +77,26 @@ where
     Ctx: Has<SplashPolicy>
         + Has<GenesisEpochStartTime>
         + Has<WPAuthPolicy>
+        + Has<WeightingPowerPolicy>
         + Has<GTAuthPolicy>
         + Has<NodeMagic>,
 {
     fn into_ledger(self, ctx: Ctx) -> TransactionOutput {
         let wp_auth_policy = ctx.select::<WPAuthPolicy>().0;
-        let weighting_power_policy = compute_mint_weighting_power_policy_id(
-            self.epoch as u64,
-            ctx.select::<WPAuthPolicy>().0,
-            ctx.select::<GTAuthPolicy>().0,
-        );
+        // BUG! Should call compute_mint_wp_auth_token_policy_id!!!!!
+        //let weighting_power_policy = compute_mint_wp_auth_token_policy_id(
+        //    self.epoch as u64,
+        //    ctx.select::<WPAuthPolicy>().0,
+        //    ctx.select::<GTAuthPolicy>().0,
+        //);
+        //println!(
+        //    "WeightingPoll::into_ledger(): weighting_power_policy {}",
+        //    weighting_power_policy.to_hex()
+        //);
         let datum = create_datum(
             &self,
             ctx.select::<GenesisEpochStartTime>(),
-            weighting_power_policy,
+            ctx.select::<WeightingPowerPolicy>().0,
         );
 
         let cred = StakeCredential::new_script(wp_auth_policy);
@@ -105,7 +111,7 @@ where
                 self.emission_rate.untag(),
             )]),
         );
-        let amount = Value::new(1379200, bundle.into());
+        let amount = Value::new(1680900, bundle.into());
         TransactionOutput::new(address, amount, Some(DatumOption::new_datum(datum)), None)
     }
 }
@@ -203,6 +209,7 @@ where
 {
     fn try_from_ledger(repr: &BabbageTransactionOutput, ctx: &C) -> Option<Self> {
         if test_address(repr.address(), ctx) {
+            println!("FOUND WEIGHTING_POLL ADDRESS");
             let value = repr.value().clone();
             let WeightingPollConfig {
                 distribution,
@@ -359,16 +366,26 @@ impl IntoPlutusData for PollAction {
 }
 
 pub enum MintAction {
-    MintAuthToken { factory_in_ix: u32 },
+    MintAuthToken {
+        factory_in_ix: u32,
+        inflation_box_in_ix: u32,
+    },
     BurnAuthToken,
 }
 
 impl IntoPlutusData for MintAction {
     fn into_pd(self) -> PlutusData {
         match self {
-            MintAction::MintAuthToken { factory_in_ix } => PlutusData::ConstrPlutusData(
-                ConstrPlutusData::new(0, vec![PlutusData::Integer(BigInteger::from(factory_in_ix))]),
-            ),
+            MintAction::MintAuthToken {
+                factory_in_ix,
+                inflation_box_in_ix,
+            } => PlutusData::ConstrPlutusData(ConstrPlutusData::new(
+                0,
+                vec![
+                    PlutusData::Integer(BigInteger::from(factory_in_ix)),
+                    PlutusData::Integer(BigInteger::from(inflation_box_in_ix)),
+                ],
+            )),
             MintAction::BurnAuthToken => PlutusData::ConstrPlutusData(ConstrPlutusData::new(1, vec![])),
         }
     }
@@ -388,12 +405,16 @@ pub fn compute_mint_wp_auth_token_policy_id(
     splash_policy: PolicyId,
     farm_auth_policy: PolicyId,
     factory_auth_policy: PolicyId,
+    inflation_box_auth_policy: PolicyId,
     zeroth_epoch_start: u64,
 ) -> PolicyId {
     let params_pd = uplc::PlutusData::Array(vec![
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(splash_policy.to_raw_bytes().to_vec())),
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(farm_auth_policy.to_raw_bytes().to_vec())),
         uplc::PlutusData::BoundedBytes(PlutusBytes::from(factory_auth_policy.to_raw_bytes().to_vec())),
+        uplc::PlutusData::BoundedBytes(PlutusBytes::from(
+            inflation_box_auth_policy.to_raw_bytes().to_vec(),
+        )),
         uplc::PlutusData::BigInt(uplc::BigInt::Int(Int::from(zeroth_epoch_start as i64))),
     ]);
     apply_params_validator(params_pd, MINT_WP_AUTH_TOKEN_SCRIPT)
