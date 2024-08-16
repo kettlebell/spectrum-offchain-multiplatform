@@ -6,6 +6,7 @@ use cml_chain::plutus::{ConstrPlutusData, PlutusData};
 use cml_chain::transaction::DatumOption;
 use cml_chain::utils::BigInteger;
 use cml_core::serialization::LenEncoding;
+use cml_core::Int;
 use num_rational::Ratio;
 use primitive_types::U512;
 
@@ -52,6 +53,7 @@ pub trait PlutusDataExtension {
     fn into_bytes(self) -> Option<Vec<u8>>;
     fn into_u64(self) -> Option<u64>;
     fn into_u128(self) -> Option<u128>;
+    fn into_i128(self) -> Option<i128>;
     fn into_u512(self) -> Option<U512>;
     fn into_vec_pd<T>(self, f: fn(PlutusData) -> Option<T>) -> Option<Vec<T>>;
     fn into_vec(self) -> Option<Vec<PlutusData>>;
@@ -89,6 +91,13 @@ impl PlutusDataExtension for PlutusData {
     fn into_u128(self) -> Option<u128> {
         match self {
             PlutusData::Integer(big_int) => Some(big_int.as_u128()?),
+            _ => None,
+        }
+    }
+
+    fn into_i128(self) -> Option<i128> {
+        match self {
+            PlutusData::Integer(big_int) => Some(i128::from(&big_int.as_int()?)),
             _ => None,
         }
     }

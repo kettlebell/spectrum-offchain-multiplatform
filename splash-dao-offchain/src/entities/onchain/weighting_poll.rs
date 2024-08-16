@@ -99,6 +99,8 @@ where
             ctx.select::<WeightingPowerPolicy>().0,
         );
 
+        println!("WEIGHTING_POLL DATUM: {:?}", datum);
+
         let cred = StakeCredential::new_script(wp_auth_policy);
         let address = EnterpriseAddress::new(ctx.select::<NodeMagic>().0 as u8, cred).to_address();
 
@@ -122,10 +124,13 @@ fn create_datum(
     weighting_power_policy: PolicyId,
 ) -> PlutusData {
     let distribution_pd = distribution_to_plutus_data(&wpoll.distribution);
-    let deadline = PlutusData::new_integer(BigInteger::from(
-        wpoll.voting_deadline_time(genesis_epoch_start_time),
-    ));
+    let deadline_inner = wpoll.voting_deadline_time(genesis_epoch_start_time);
+    println!("WP datum:distribution: {:?}", wpoll.distribution);
+    println!("WP datum:epoch: {}", wpoll.epoch);
+    println!("WP datum:deadline: {}", deadline_inner);
+    let deadline = PlutusData::new_integer(BigInteger::from(deadline_inner));
     let emission_rate = PlutusData::new_integer(BigInteger::from(wpoll.emission_rate.untag()));
+    println!("WP datum:emission_rate: {}", wpoll.emission_rate.untag());
     let weighting_power_policy_pd = PlutusData::new_bytes(weighting_power_policy.to_raw_bytes().to_vec());
 
     PlutusData::ConstrPlutusData(ConstrPlutusData::new(

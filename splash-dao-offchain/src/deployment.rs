@@ -41,6 +41,7 @@ pub struct BuiltPolicy {
 #[derive(serde::Deserialize)]
 pub struct MintedTokens {
     pub factory_auth: BuiltPolicy,
+    pub wp_factory_auth: BuiltPolicy,
     pub ve_factory_auth: BuiltPolicy,
     pub perm_auth: BuiltPolicy,
     pub proposal_auth: BuiltPolicy,

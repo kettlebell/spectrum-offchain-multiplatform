@@ -41,6 +41,7 @@ impl ProtocolConfig {
 #[derive(Clone)]
 pub struct ProtocolTokens {
     pub factory_auth_policy: PolicyId,
+    pub wp_factory_auth_policy: PolicyId,
     pub ve_factory_auth_policy: PolicyId,
     pub ve_factory_auth_name: AssetName,
     pub edao_msig_policy: PolicyId,
@@ -55,6 +56,7 @@ impl ProtocolTokens {
     pub fn from_minted_tokens(value: MintedTokens) -> Self {
         Self {
             factory_auth_policy: value.factory_auth.policy_id,
+            wp_factory_auth_policy: value.wp_factory_auth.policy_id,
             ve_factory_auth_policy: value.ve_factory_auth.policy_id,
             ve_factory_auth_name: value.ve_factory_auth.asset_name,
             edao_msig_policy: value.edao_msig.policy_id,
@@ -99,6 +101,9 @@ pub struct FarmAuthRefScriptOutput(pub TransactionUnspentOutput);
 
 #[derive(Debug, Clone)]
 pub struct FactoryAuthPolicy(pub PolicyId);
+
+#[derive(Debug, Clone)]
+pub struct WPFactoryAuthPolicy(pub PolicyId);
 
 #[derive(Debug, Clone)]
 pub struct VEFactoryAuthPolicy(pub PolicyId);
@@ -214,6 +219,12 @@ impl Has<FarmAuthRefScriptOutput> for ProtocolConfig {
 impl Has<FactoryAuthPolicy> for ProtocolConfig {
     fn select<U: IsEqual<FactoryAuthPolicy>>(&self) -> FactoryAuthPolicy {
         FactoryAuthPolicy(self.tokens.factory_auth_policy)
+    }
+}
+
+impl Has<WPFactoryAuthPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<WPFactoryAuthPolicy>>(&self) -> WPFactoryAuthPolicy {
+        WPFactoryAuthPolicy(self.tokens.wp_factory_auth_policy)
     }
 }
 

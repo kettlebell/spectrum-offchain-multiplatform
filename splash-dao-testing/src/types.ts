@@ -50,7 +50,8 @@ export type NFTNames =
   | "proposal_auth"
   | "edao_msig"
   | "ve_identifier"
-  | "inflation_auth";
+  | "inflation_auth"
+  | "wp_factory_auth";
 
 export type DeployedValidator = BuiltValidator & {
   referenceUtxo: UTxO;

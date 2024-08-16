@@ -37,27 +37,28 @@ impl Identifier for PollFactoryId {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PollFactory {
-    pub last_poll_epoch: ProtocolEpoch,
+    pub last_poll_epoch: Option<ProtocolEpoch>,
     pub active_farms: Vec<FarmId>,
     pub stable_id: ScriptHash,
 }
 
 impl PollFactory {
     pub fn next_epoch(&self) -> ProtocolEpoch {
-        self.last_poll_epoch + 1
+        self.last_poll_epoch.map(|last_epoch| last_epoch + 1).unwrap_or(0)
     }
+
     pub fn next_weighting_poll(
         mut self,
         emission_rate: TaggedAmount<Splash>,
     ) -> (PollFactory, WeightingPoll) {
-        let poll_epoch = self.last_poll_epoch + 1;
+        let next_epoch = self.next_epoch();
         let next_poll = WeightingPoll {
-            epoch: poll_epoch,
+            epoch: next_epoch,
             distribution: self.active_farms.iter().map(|farm| (*farm, 0u64)).collect(),
             emission_rate,
             weighting_power: None,
         };
-        self.last_poll_epoch = poll_epoch;
+        self.last_poll_epoch = Some(next_epoch);
         (self, next_poll)
     }
 }
@@ -84,6 +85,12 @@ where
             } = datum
                 .into_pd()
                 .map(|pd| PollFactoryConfig::try_from_pd(pd).unwrap())?;
+
+            let last_poll_epoch = if last_poll_epoch < 0 {
+                None
+            } else {
+                Some(last_poll_epoch as u32)
+            };
 
             let poll_factory = PollFactory {
                 last_poll_epoch,
@@ -138,7 +145,7 @@ pub struct FactoryRedeemer {
 impl IntoPlutusData for FactoryRedeemer {
     fn into_pd(self) -> PlutusData {
         let cpd = ConstrPlutusData::new(
-            PF_REDEEMER_MAPPING.successor_ix as u64,
+            0,
             vec![(self.successor_ix as u64).into_pd(), self.action.into_pd()],
         );
         //cpd.set_field(
@@ -185,7 +192,7 @@ pub fn compute_wp_factory_script_hash(
 
 pub struct PollFactoryConfig {
     /// Epoch of the last WP.
-    last_poll_epoch: u32,
+    last_poll_epoch: i32,
     /// Active farms.
     active_farms: Vec<FarmId>,
 }
@@ -193,7 +200,7 @@ pub struct PollFactoryConfig {
 impl TryFromPData for PollFactoryConfig {
     fn try_from_pd(data: cml_chain::plutus::PlutusData) -> Option<Self> {
         let mut cpd = data.into_constr_pd()?;
-        let last_poll_epoch = cpd.take_field(0)?.into_u128().unwrap() as u32;
+        let last_poll_epoch = cpd.take_field(0)?.into_i128().unwrap() as i32;
         let active_farms: Vec<_> = cpd
             .take_field(1)?
             .into_vec()

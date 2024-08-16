@@ -54,7 +54,8 @@ use crate::protocol_config::{
     GovProxyRefScriptOutput, InflationAuthPolicy, InflationBoxRefScriptOutput, NodeMagic, OperatorCreds,
     PermManagerAuthPolicy, PermManagerBoxRefScriptOutput, PollFactoryRefScriptOutput, Reward, SplashPolicy,
     VEFactoryAuthPolicy, VotingEscrowPolicy, VotingEscrowRefScriptOutput, WPAuthPolicy,
-    WPAuthRefScriptOutput, WeightingPowerPolicy, WeightingPowerRefScriptOutput, TX_FEE_CORRECTION,
+    WPAuthRefScriptOutput, WPFactoryAuthPolicy, WeightingPowerPolicy, WeightingPowerRefScriptOutput,
+    TX_FEE_CORRECTION,
 };
 use crate::GenesisEpochStartTime;
 
@@ -126,6 +127,7 @@ where
         + Has<FarmAuthPolicy>
         + Has<FarmAuthRefScriptOutput>
         + Has<FactoryAuthPolicy>
+        + Has<WPFactoryAuthPolicy>
         + Has<VEFactoryAuthPolicy>
         + Has<VotingEscrowRefScriptOutput>
         + Has<WeightingPowerPolicy>
@@ -154,7 +156,7 @@ where
 
         // Set TX validity range
         let current_posix_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        let start_slot = 67772807; //67580376;
+        let start_slot = 68004028; //67580376;
         tx_builder.set_validity_start_interval(start_slot);
         tx_builder.set_ttl(start_slot + 43200);
 
@@ -188,17 +190,21 @@ where
         .plutus_script_inline_datum(inflation_script, vec![])
         .unwrap();
 
-        let inflation_input_tx_hash = inflation_input.input.transaction_id;
+        let inflation_tx_input = inflation_input.input.clone();
 
         tx_builder.add_reference_input(self.ctx.select::<InflationBoxRefScriptOutput>().0.clone());
 
         let prev_ib_version = *inflation_box.version();
         let (next_inflation_box, emission_rate) = inflation_box.get().release_next_tranche();
+        println!(
+            "inflation::release_next_tranche --> emission_rate: {}",
+            emission_rate.untag()
+        );
         let mut inflation_box_out = inflation_box_in.clone();
         let mut amount = inflation_box_out.amount().clone();
 
         // HACK
-        amount.coin -= (1990155 + 528 + 17416);
+        amount.coin -= 2009683;
         inflation_box_out.set_amount(amount);
         if let Some(data_mut) = inflation_box_out.data_mut() {
             unsafe_update_ibox_state(data_mut, next_inflation_box.last_processed_epoch);
@@ -229,18 +235,19 @@ where
                 .plutus_script_inline_datum(wp_factory_script, vec![])
                 .unwrap();
 
-        let wp_factory_input_tx_hash = wp_factory_input.input.transaction_id;
+        let wp_factory_tx_input = wp_factory_input.input.clone();
 
         tx_builder.add_reference_input(self.ctx.select::<PollFactoryRefScriptOutput>().0.clone());
 
         let prev_factory_version = *factory.version();
         let (next_factory, fresh_wpoll) = factory.unwrap().next_weighting_poll(emission_rate);
-        let mut factory_out = factory_in.clone();
+        let mut factory_out = factory_in;
         if let Some(data_mut) = factory_out.data_mut() {
-            unsafe_update_factory_state(data_mut, next_factory.last_poll_epoch);
+            println!("INPUT WP_FACTORY DATUM: {:?}", data_mut);
+            unsafe_update_factory_state(data_mut, next_factory.last_poll_epoch.unwrap());
         }
 
-        let mint_action = if inflation_input_tx_hash < wp_factory_input_tx_hash {
+        let mint_action = if inflation_tx_input < wp_factory_tx_input {
             tx_builder.add_input(inflation_input).unwrap();
             tx_builder.add_input(wp_factory_input).unwrap();
             tx_builder.set_exunits(
@@ -276,7 +283,7 @@ where
         let mint_wp_auth_token_script_hash = compute_mint_wp_auth_token_policy_id(
             splash_policy,
             farm_auth_policy,
-            self.ctx.select::<FactoryAuthPolicy>().0,
+            self.ctx.select::<WPFactoryAuthPolicy>().0,
             self.ctx.select::<InflationAuthPolicy>().0,
             genesis_time,
         );
@@ -297,7 +304,8 @@ where
             inflation_box.get().last_processed_epoch
         );
         // Compute index_tn(epoch), where `epoch` is the current epoch
-        let asset = compute_epoch_asset_name(inflation_box.get().last_processed_epoch);
+        //let asset = compute_epoch_asset_name(inflation_box.get().last_processed_epoch);
+        let asset = compute_epoch_asset_name(0);
         println!("mint_wp_auth_token name: {}", hex::encode(&asset.inner));
         let wp_auth_minting_policy = SingleMintBuilder::new_single_asset(asset.clone(), 1)
             .plutus_script(mint_wp_auth_token_witness, vec![]);
@@ -929,11 +937,16 @@ where
     }
 }
 
+/// Computes index_tn(epoch) from aiken script
 pub fn compute_epoch_asset_name(epoch: u32) -> cml_chain::assets::AssetName {
     let i = uplc_pallas_codec::utils::Int::from(epoch as i64);
+
+    // Here we calculate `cbor.serialise(i)` from Aiken script. The exact calculation that is
+    // performed is found here: https://github.com/aiken-lang/aiken/blob/2bb2f11090ace3c7f36ed75b0e1d5b101d0c9a8a/crates/uplc/src/machine/runtime.rs#L1032
     let bytes = PlutusData::BigInt(uplc_pallas_primitives::alonzo::BigInt::Int(i))
         .encode_fragment()
         .unwrap();
+
     let token_name = blake2b256(bytes.as_ref());
     cml_chain::assets::AssetName::new(token_name.to_vec()).unwrap()
 }
@@ -958,6 +971,20 @@ mod tests {
             inflation_box_auth_policy,
             zeroth_epoch_start,
         );
+    }
+
+    #[test]
+    fn test_hex_encode() {
+        let orig: Vec<u8> = vec![
+            102, 97, 114, 109, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0,
+        ];
+        let trunc: Vec<u8> = vec![102, 97, 114, 109, 48];
+        let tx_input: Vec<u8> = vec![
+            34, 137, 63, 115, 4, 79, 41, 24, 87, 53, 80, 108, 164, 159, 251, 51, 50, 147, 63, 63, 20, 189,
+            145, 172, 75, 137, 165, 134, 131, 202, 199, 225,
+        ];
+        println!("orig: {}", hex::encode(&tx_input));
     }
 
     fn create_dummy_policy_id(val: u8) -> ScriptHash {
