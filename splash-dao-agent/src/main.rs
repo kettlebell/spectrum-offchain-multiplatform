@@ -155,6 +155,7 @@ async fn main() {
         StateProjectionRocksDB::new(config.voting_escrow_persistence_config),
         StateProjectionRocksDB::new(config.smart_farm_persistence_config),
         StateProjectionRocksDB::new(config.perm_manager_persistence_config),
+        StateProjectionRocksDB::new(config.funding_box_config),
         setup_order_backlog(config.order_backlog_config).await,
         NetworkTimeSource {},
         inflation_actions,

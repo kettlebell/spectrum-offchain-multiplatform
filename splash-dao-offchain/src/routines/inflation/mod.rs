@@ -32,6 +32,7 @@ use type_equalities::IsEqual;
 
 use crate::deployment::ProtocolValidator;
 use crate::entities::offchain::voting_order::VotingOrder;
+use crate::entities::onchain::funding_box::{FundingBoxId, FundingBoxSnapshot};
 use crate::entities::onchain::inflation_box::{InflationBoxId, InflationBoxSnapshot};
 use crate::entities::onchain::permission_manager::{PermManager, PermManagerId, PermManagerSnapshot};
 use crate::entities::onchain::poll_factory::{PollFactory, PollFactoryId, PollFactorySnapshot};
@@ -54,13 +55,14 @@ use crate::{CurrentEpoch, NetworkTimeSource};
 
 pub mod actions;
 
-pub struct Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> {
+pub struct Behaviour<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> {
     inflation_box: IB,
     poll_factory: PF,
     weighting_poll: WP,
     voting_escrow: VE,
     smart_farm: SF,
     perm_manager: PM,
+    funding_box: FB,
     backlog: Backlog,
     ntp: Time,
     actions: Actions,
@@ -76,8 +78,8 @@ pub struct Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net
 const DEF_DELAY: Duration = Duration::new(5, 0);
 
 #[async_trait::async_trait]
-impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> RoutineBehaviour
-    for Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> RoutineBehaviour
+    for Behaviour<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 where
     IB: StateProjectionRead<InflationBoxSnapshot, Bearer>
         + StateProjectionWrite<InflationBoxSnapshot, Bearer>
@@ -102,6 +104,10 @@ where
         + Sync,
     PM: StateProjectionRead<PermManagerSnapshot, Bearer>
         + StateProjectionWrite<PermManagerSnapshot, Bearer>
+        + Send
+        + Sync,
+    FB: StateProjectionRead<FundingBoxSnapshot, Bearer>
+        + StateProjectionWrite<FundingBoxSnapshot, Bearer>
         + Send
         + Sync,
     Time: NetworkTimeProvider + Send + Sync,
@@ -129,8 +135,8 @@ where
     }
 }
 
-impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
-    Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+    Behaviour<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     pub fn new(
         inflation_box: IB,
@@ -139,6 +145,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
         voting_escrow: VE,
         smart_farm: SF,
         perm_manager: PM,
+        funding_box: FB,
         backlog: Backlog,
         ntp: Time,
         actions: Actions,
@@ -156,6 +163,7 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
             voting_escrow,
             smart_farm,
             perm_manager,
+            funding_box,
             backlog,
             ntp,
             actions,
@@ -336,6 +344,10 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
             + StateProjectionWrite<PermManagerSnapshot, Bearer>
             + Send
             + Sync,
+        FB: StateProjectionRead<FundingBoxSnapshot, Bearer>
+            + StateProjectionWrite<FundingBoxSnapshot, Bearer>
+            + Send
+            + Sync,
     {
         match entity.get() {
             DaoEntity::Inflation(ib) => {
@@ -433,6 +445,22 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
                     prev_state_id,
                 };
                 self.weighting_poll.write_confirmed(traced).await;
+            }
+
+            DaoEntity::FundingBox(fb) => {
+                let confirmed_snapshot =
+                    Confirmed(Bundled(Snapshot::new(fb.clone(), *entity.version()), bearer));
+                let prev_state_id = if let Some(state) = self.funding_box.read(fb.id).await {
+                    let bundled = state.erased();
+                    Some(bundled.version())
+                } else {
+                    None
+                };
+                let traced = Traced {
+                    state: confirmed_snapshot,
+                    prev_state_id,
+                };
+                self.funding_box.write_confirmed(traced).await;
             }
         }
     }
@@ -556,8 +584,8 @@ impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Net>
-    Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, TransactionOutput, Net>
+impl<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Net>
+    Behaviour<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, TransactionOutput, Net>
 where
     IB: StateProjectionRead<InflationBoxSnapshot, TransactionOutput>
         + StateProjectionWrite<InflationBoxSnapshot, TransactionOutput>
@@ -582,6 +610,10 @@ where
         + Sync,
     PM: StateProjectionRead<PermManagerSnapshot, TransactionOutput>
         + StateProjectionWrite<PermManagerSnapshot, TransactionOutput>
+        + Send
+        + Sync,
+    FB: StateProjectionRead<FundingBoxSnapshot, TransactionOutput>
+        + StateProjectionWrite<FundingBoxSnapshot, TransactionOutput>
         + Send
         + Sync,
     Time: NetworkTimeProvider + Send + Sync,
@@ -682,21 +714,21 @@ where
     }
 }
 
-struct WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> {
-    behaviour: &'a Behaviour<IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>,
+struct WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> {
+    behaviour: &'a Behaviour<IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>,
     output_ref: OutputRef,
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<OutputRef>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<OutputRef>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<OutputRef>>(&self) -> OutputRef {
         self.output_ref
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<CurrentEpoch>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<CurrentEpoch>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 where
     IB: StateProjectionRead<InflationBoxSnapshot, Bearer> + Send + Sync,
 {
@@ -706,81 +738,81 @@ where
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<SplashPolicy>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<SplashPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<SplashPolicy>>(&self) -> SplashPolicy {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<SplashAssetName>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<SplashAssetName>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<SplashAssetName>>(&self) -> SplashAssetName {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<PermManagerAuthPolicy>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<PermManagerAuthPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<PermManagerAuthPolicy>>(&self) -> PermManagerAuthPolicy {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<PermManagerAuthName>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<PermManagerAuthName>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<PermManagerAuthName>>(&self) -> PermManagerAuthName {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<WPAuthPolicy>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<WPAuthPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<WPAuthPolicy>>(&self) -> WPAuthPolicy {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<VEFactoryAuthPolicy>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<VEFactoryAuthPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<VEFactoryAuthPolicy>>(&self) -> VEFactoryAuthPolicy {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<VEFactoryAuthName>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<VEFactoryAuthName>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<VEFactoryAuthName>>(&self) -> VEFactoryAuthName {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<GTAuthPolicy>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<GTAuthPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<GTAuthPolicy>>(&self) -> GTAuthPolicy {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net> Has<GTAuthName>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<GTAuthName>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<GTAuthName>>(&self) -> GTAuthName {
         self.behaviour.conf.get()
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::VotingEscrow as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::VotingEscrow as u8 }>>>(
         &self,
@@ -789,9 +821,9 @@ impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>>(
         &self,
@@ -800,9 +832,9 @@ impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::SmartFarm as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::SmartFarm as u8 }>>>(
         &self,
@@ -811,9 +843,9 @@ impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>>(
         &self,
@@ -822,9 +854,9 @@ impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>>(
         &self,
@@ -833,9 +865,9 @@ impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
     Has<DeployedScriptInfo<{ ProtocolValidator::PermManager as u8 }>>
-    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, Backlog, Time, Actions, Bearer, Net>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::PermManager as u8 }>>>(
         &self,
