@@ -21,7 +21,7 @@ use crate::deployment::ProtocolValidator;
 use crate::entities::onchain::smart_farm::FarmId;
 use crate::entities::onchain::weighting_poll::WeightingPoll;
 use crate::entities::Snapshot;
-use crate::protocol_config::WPAuthPolicy;
+use crate::protocol_config::MintWPAuthPolicy;
 use crate::time::ProtocolEpoch;
 
 pub type PollFactorySnapshot = Snapshot<PollFactory, OutputRef>;
@@ -73,7 +73,7 @@ impl HasIdentifier for PollFactorySnapshot {
 
 impl<C> TryFromLedger<BabbageTransactionOutput, C> for PollFactorySnapshot
 where
-    C: Has<WPAuthPolicy> + Has<OutputRef> + Has<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>,
+    C: Has<MintWPAuthPolicy> + Has<OutputRef> + Has<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>,
 {
     fn try_from_ledger(repr: &BabbageTransactionOutput, ctx: &C) -> Option<Self> {
         if test_address(repr.address(), ctx) {

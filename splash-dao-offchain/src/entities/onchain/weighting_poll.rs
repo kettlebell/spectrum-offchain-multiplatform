@@ -28,7 +28,7 @@ use crate::deployment::ProtocolValidator;
 use crate::entities::onchain::smart_farm::FarmId;
 use crate::entities::onchain::voting_escrow::compute_mint_weighting_power_policy_id;
 use crate::entities::Snapshot;
-use crate::protocol_config::{GTAuthPolicy, NodeMagic, SplashPolicy, WPAuthPolicy, WeightingPowerPolicy};
+use crate::protocol_config::{GTAuthPolicy, NodeMagic, SplashPolicy, MintWPAuthPolicy, WeightingPowerPolicy};
 use crate::routines::inflation::actions::compute_epoch_asset_name;
 use crate::time::{epoch_end, epoch_start, NetworkTime, ProtocolEpoch};
 use crate::{CurrentEpoch, GenesisEpochStartTime};
@@ -76,13 +76,13 @@ impl<Ctx> IntoLedger<TransactionOutput, Ctx> for WeightingPoll
 where
     Ctx: Has<SplashPolicy>
         + Has<GenesisEpochStartTime>
-        + Has<WPAuthPolicy>
+        + Has<MintWPAuthPolicy>
         + Has<WeightingPowerPolicy>
         + Has<GTAuthPolicy>
         + Has<NodeMagic>,
 {
     fn into_ledger(self, ctx: Ctx) -> TransactionOutput {
-        let wp_auth_policy = ctx.select::<WPAuthPolicy>().0;
+        let wp_auth_policy = ctx.select::<MintWPAuthPolicy>().0;
         // BUG! Should call compute_mint_wp_auth_token_policy_id!!!!!
         //let weighting_power_policy = compute_mint_wp_auth_token_policy_id(
         //    self.epoch as u64,
@@ -209,7 +209,7 @@ impl WeightingPoll {
 impl<C> TryFromLedger<BabbageTransactionOutput, C> for WeightingPollSnapshot
 where
     C: Has<CurrentEpoch>
-        + Has<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>
+        + Has<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>>
         + Has<OutputRef>,
 {
     fn try_from_ledger(repr: &BabbageTransactionOutput, ctx: &C) -> Option<Self> {

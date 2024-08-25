@@ -44,8 +44,9 @@ use crate::entities::onchain::weighting_poll::{
 use crate::entities::onchain::{DaoEntity, DaoEntitySnapshot};
 use crate::entities::Snapshot;
 use crate::protocol_config::{
-    GTAuthName, GTAuthPolicy, PermManagerAuthName, PermManagerAuthPolicy, ProtocolConfig, SplashAssetName,
-    SplashPolicy, VEFactoryAuthName, VEFactoryAuthPolicy, WPAuthPolicy,
+    GTAuthName, GTAuthPolicy, MintVECompositionPolicy, MintVEIdentifierPolicy, MintWPAuthPolicy,
+    PermManagerAuthName, PermManagerAuthPolicy, ProtocolConfig, SplashAssetName, SplashPolicy,
+    VEFactoryAuthName, VEFactoryAuthPolicy,
 };
 use crate::routine::{retry_in, RoutineBehaviour, ToRoutine};
 use crate::routines::inflation::actions::InflationActions;
@@ -770,10 +771,26 @@ impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<Pe
     }
 }
 
-impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<WPAuthPolicy>
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<MintWPAuthPolicy>
     for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
-    fn select<U: IsEqual<WPAuthPolicy>>(&self) -> WPAuthPolicy {
+    fn select<U: IsEqual<MintWPAuthPolicy>>(&self) -> MintWPAuthPolicy {
+        self.behaviour.conf.get()
+    }
+}
+
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<MintVEIdentifierPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+{
+    fn select<U: IsEqual<MintVEIdentifierPolicy>>(&self) -> MintVEIdentifierPolicy {
+        self.behaviour.conf.get()
+    }
+}
+
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net> Has<MintVECompositionPolicy>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+{
+    fn select<U: IsEqual<MintVECompositionPolicy>>(&self) -> MintVECompositionPolicy {
         self.behaviour.conf.get()
     }
 }
@@ -855,12 +872,34 @@ impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 }
 
 impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
-    Has<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>
+    Has<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>>
     for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
 {
-    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>>(
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>>>(
         &self,
-    ) -> DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }> {
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }> {
+        self.behaviour.conf.get()
+    }
+}
+
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+    Has<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+{
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>>>(
+        &self,
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }> {
+        self.behaviour.conf.get()
+    }
+}
+
+impl<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+    Has<DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }>>
+    for WithOutputRef<'a, IB, PF, WP, VE, SF, PM, FB, Backlog, Time, Actions, Bearer, Net>
+{
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }>>>(
+        &self,
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }> {
         self.behaviour.conf.get()
     }
 }

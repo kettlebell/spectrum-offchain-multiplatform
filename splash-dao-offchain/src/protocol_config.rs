@@ -88,10 +88,22 @@ pub struct SplashAssetName(pub AssetName);
 pub struct PollFactoryRefScriptOutput(pub TransactionUnspentOutput);
 
 #[derive(Debug, Clone)]
-pub struct WPAuthPolicy(pub PolicyId);
+pub struct MintWPAuthPolicy(pub PolicyId);
 
 #[derive(Debug, Clone)]
-pub struct WPAuthRefScriptOutput(pub TransactionUnspentOutput);
+pub struct MintWPAuthRefScriptOutput(pub TransactionUnspentOutput);
+
+#[derive(Debug, Clone)]
+pub struct MintVEIdentifierPolicy(pub PolicyId);
+
+#[derive(Debug, Clone)]
+pub struct MintVEIdentifierRefScriptOutput(pub TransactionUnspentOutput);
+
+#[derive(Debug, Clone)]
+pub struct MintVECompositionPolicy(pub PolicyId);
+
+#[derive(Debug, Clone)]
+pub struct MintVECompositionRefScriptOutput(pub TransactionUnspentOutput);
 
 #[derive(Debug, Clone)]
 pub struct FarmAuthPolicy(pub PolicyId);
@@ -191,15 +203,49 @@ impl Has<PollFactoryRefScriptOutput> for ProtocolConfig {
     }
 }
 
-impl Has<WPAuthPolicy> for ProtocolConfig {
-    fn select<U: IsEqual<WPAuthPolicy>>(&self) -> WPAuthPolicy {
-        WPAuthPolicy(self.deployed_validators.mint_wpauth_token.hash)
+impl Has<MintWPAuthPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<MintWPAuthPolicy>>(&self) -> MintWPAuthPolicy {
+        MintWPAuthPolicy(self.deployed_validators.mint_wpauth_token.hash)
     }
 }
 
-impl Has<WPAuthRefScriptOutput> for ProtocolConfig {
-    fn select<U: IsEqual<WPAuthRefScriptOutput>>(&self) -> WPAuthRefScriptOutput {
-        WPAuthRefScriptOutput(self.deployed_validators.mint_wpauth_token.reference_utxo.clone())
+impl Has<MintWPAuthRefScriptOutput> for ProtocolConfig {
+    fn select<U: IsEqual<MintWPAuthRefScriptOutput>>(&self) -> MintWPAuthRefScriptOutput {
+        MintWPAuthRefScriptOutput(self.deployed_validators.mint_wpauth_token.reference_utxo.clone())
+    }
+}
+
+impl Has<MintVEIdentifierPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<MintVEIdentifierPolicy>>(&self) -> MintVEIdentifierPolicy {
+        MintVEIdentifierPolicy(self.deployed_validators.mint_ve_identifier_token.hash)
+    }
+}
+
+impl Has<MintVEIdentifierRefScriptOutput> for ProtocolConfig {
+    fn select<U: IsEqual<MintVEIdentifierRefScriptOutput>>(&self) -> MintVEIdentifierRefScriptOutput {
+        MintVEIdentifierRefScriptOutput(
+            self.deployed_validators
+                .mint_ve_identifier_token
+                .reference_utxo
+                .clone(),
+        )
+    }
+}
+
+impl Has<MintVECompositionPolicy> for ProtocolConfig {
+    fn select<U: IsEqual<MintVECompositionPolicy>>(&self) -> MintVECompositionPolicy {
+        MintVECompositionPolicy(self.deployed_validators.mint_ve_composition_token.hash)
+    }
+}
+
+impl Has<MintVECompositionRefScriptOutput> for ProtocolConfig {
+    fn select<U: IsEqual<MintVECompositionRefScriptOutput>>(&self) -> MintVECompositionRefScriptOutput {
+        MintVECompositionRefScriptOutput(
+            self.deployed_validators
+                .mint_ve_composition_token
+                .reference_utxo
+                .clone(),
+        )
     }
 }
 
@@ -338,11 +384,27 @@ impl Has<DeployedScriptInfo<{ ProtocolValidator::GovProxy as u8 }>> for Protocol
     }
 }
 
-impl Has<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>> for ProtocolConfig {
-    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>>(
+impl Has<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>> for ProtocolConfig {
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>>>(
         &self,
-    ) -> DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }> {
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }> {
         DeployedScriptInfo::from(&self.deployed_validators.mint_wpauth_token)
+    }
+}
+
+impl Has<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>> for ProtocolConfig {
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>>>(
+        &self,
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }> {
+        DeployedScriptInfo::from(&self.deployed_validators.mint_ve_identifier_token)
+    }
+}
+
+impl Has<DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }>> for ProtocolConfig {
+    fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }>>>(
+        &self,
+    ) -> DeployedScriptInfo<{ ProtocolValidator::MintVeCompositionToken as u8 }> {
+        DeployedScriptInfo::from(&self.deployed_validators.mint_ve_composition_token)
     }
 }
 

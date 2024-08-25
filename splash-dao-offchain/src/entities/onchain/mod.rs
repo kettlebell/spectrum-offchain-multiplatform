@@ -13,8 +13,8 @@ use weighting_poll::{WeightingPoll, WeightingPollSnapshot};
 use crate::{
     deployment::ProtocolValidator,
     protocol_config::{
-        GTAuthName, GTAuthPolicy, PermManagerAuthName, PermManagerAuthPolicy, SplashAssetName, SplashPolicy,
-        VEFactoryAuthName, VEFactoryAuthPolicy, WPAuthPolicy,
+        GTAuthName, GTAuthPolicy, MintWPAuthPolicy, PermManagerAuthName, PermManagerAuthPolicy,
+        SplashAssetName, SplashPolicy, VEFactoryAuthName, VEFactoryAuthPolicy,
     },
     CurrentEpoch,
 };
@@ -48,13 +48,13 @@ where
         + Has<SplashAssetName>
         + Has<PermManagerAuthPolicy>
         + Has<PermManagerAuthName>
-        + Has<WPAuthPolicy>
+        + Has<MintWPAuthPolicy>
         + Has<VEFactoryAuthPolicy>
         + Has<VEFactoryAuthName>
         + Has<GTAuthPolicy>
         + Has<GTAuthName>
         + Has<CurrentEpoch>
-        + Has<DeployedScriptInfo<{ ProtocolValidator::WpAuthPolicy as u8 }>>
+        + Has<DeployedScriptInfo<{ ProtocolValidator::MintWpAuthPolicy as u8 }>>
         + Has<DeployedScriptInfo<{ ProtocolValidator::VotingEscrow as u8 }>>
         + Has<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>
         + Has<DeployedScriptInfo<{ ProtocolValidator::PermManager as u8 }>>

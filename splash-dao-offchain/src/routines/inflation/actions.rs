@@ -51,11 +51,11 @@ use crate::entities::onchain::weighting_poll::{
 use crate::entities::Snapshot;
 use crate::protocol_config::{
     EDaoMSigAuthPolicy, FactoryAuthPolicy, FarmAuthPolicy, FarmAuthRefScriptOutput, GTAuthPolicy,
-    GovProxyRefScriptOutput, InflationAuthPolicy, InflationBoxRefScriptOutput, NodeMagic, OperatorCreds,
-    PermManagerAuthPolicy, PermManagerBoxRefScriptOutput, PollFactoryRefScriptOutput, Reward, SplashPolicy,
-    VEFactoryAuthPolicy, VotingEscrowPolicy, VotingEscrowRefScriptOutput, WPAuthPolicy,
-    WPAuthRefScriptOutput, WPFactoryAuthPolicy, WeightingPowerPolicy, WeightingPowerRefScriptOutput,
-    TX_FEE_CORRECTION,
+    GovProxyRefScriptOutput, InflationAuthPolicy, InflationBoxRefScriptOutput, MintWPAuthPolicy,
+    MintWPAuthRefScriptOutput, NodeMagic, OperatorCreds, PermManagerAuthPolicy,
+    PermManagerBoxRefScriptOutput, PollFactoryRefScriptOutput, Reward, SplashPolicy, VEFactoryAuthPolicy,
+    VotingEscrowPolicy, VotingEscrowRefScriptOutput, WPFactoryAuthPolicy, WeightingPowerPolicy,
+    WeightingPowerRefScriptOutput, TX_FEE_CORRECTION,
 };
 use crate::GenesisEpochStartTime;
 
@@ -122,8 +122,8 @@ where
         + Has<DeployedScriptInfo<{ ProtocolValidator::Inflation as u8 }>>
         + Has<PollFactoryRefScriptOutput>
         + Has<DeployedScriptInfo<{ ProtocolValidator::WpFactory as u8 }>>
-        + Has<WPAuthPolicy>
-        + Has<WPAuthRefScriptOutput>
+        + Has<MintWPAuthPolicy>
+        + Has<MintWPAuthRefScriptOutput>
         + Has<FarmAuthPolicy>
         + Has<FarmAuthRefScriptOutput>
         + Has<FactoryAuthPolicy>
@@ -160,7 +160,7 @@ where
         tx_builder.set_validity_start_interval(start_slot);
         tx_builder.set_ttl(start_slot + 43200);
 
-        let wpoll_auth_policy = self.ctx.select::<WPAuthPolicy>().0;
+        let wpoll_auth_policy = self.ctx.select::<MintWPAuthPolicy>().0;
         let splash_policy = self.ctx.select::<SplashPolicy>().0;
         let genesis_time = self.ctx.select::<GenesisEpochStartTime>().0;
         let farm_auth_policy = self.ctx.select::<FarmAuthPolicy>().0;
@@ -309,7 +309,7 @@ where
         println!("mint_wp_auth_token name: {}", hex::encode(&asset.inner));
         let wp_auth_minting_policy = SingleMintBuilder::new_single_asset(asset.clone(), 1)
             .plutus_script(mint_wp_auth_token_witness, vec![]);
-        tx_builder.add_reference_input(self.ctx.select::<WPAuthRefScriptOutput>().0.clone());
+        tx_builder.add_reference_input(self.ctx.select::<MintWPAuthRefScriptOutput>().0.clone());
         tx_builder.add_mint(wp_auth_minting_policy).unwrap();
         tx_builder.set_exunits(
             RedeemerWitnessKey::new(RedeemerTag::Mint, 0),
@@ -430,7 +430,7 @@ where
         let farm_auth_policy = self.ctx.select::<FarmAuthPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
         let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
-        let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
+        let wpoll_auth_ref_script = self.ctx.select::<MintWPAuthRefScriptOutput>().0;
 
         let weighting_poll_script_hash = compute_mint_wp_auth_token_policy_id(
             splash_policy,
@@ -523,10 +523,10 @@ where
         let splash_policy = self.ctx.select::<SplashPolicy>().0;
         let ve_factory_auth_policy = self.ctx.select::<VEFactoryAuthPolicy>().0;
         let voting_escrow_ref_script = self.ctx.select::<VotingEscrowRefScriptOutput>().0;
-        let wpoll_auth_policy = self.ctx.select::<WPAuthPolicy>().0;
+        let wpoll_auth_policy = self.ctx.select::<MintWPAuthPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
         let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
-        let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
+        let wpoll_auth_ref_script = self.ctx.select::<MintWPAuthRefScriptOutput>().0;
         let weighting_power_ref_script = self.ctx.select::<WeightingPowerRefScriptOutput>().0;
 
         let voting_escrow_script_hash = compute_voting_escrow_policy_id(ve_factory_auth_policy);
@@ -732,7 +732,7 @@ where
         let splash_policy = self.ctx.select::<SplashPolicy>().0;
         let factory_auth_policy = self.ctx.select::<FactoryAuthPolicy>().0;
         let inflation_box_auth_policy = self.ctx.select::<InflationAuthPolicy>().0;
-        let wpoll_auth_ref_script = self.ctx.select::<WPAuthRefScriptOutput>().0;
+        let wpoll_auth_ref_script = self.ctx.select::<MintWPAuthRefScriptOutput>().0;
         let smart_farm_ref_script = self.ctx.select::<FarmAuthRefScriptOutput>().0;
         let edao_msig_policy = self.ctx.select::<EDaoMSigAuthPolicy>().0;
         let perm_manager_auth_policy = self.ctx.select::<PermManagerAuthPolicy>().0;

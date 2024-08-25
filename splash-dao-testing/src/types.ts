@@ -38,6 +38,7 @@ export type ScriptNames =
   | "govProxy"
   | "permManager"
   | "mintWPAuthToken"
+  | "mintVEIdentifierToken"
   | "mintVECompositionToken"
   | "weightingPower"
   | "smartFarm";
@@ -49,7 +50,6 @@ export type NFTNames =
   | "perm_auth"
   | "proposal_auth"
   | "edao_msig"
-  | "ve_identifier"
   | "inflation_auth"
   | "wp_factory_auth";
 
