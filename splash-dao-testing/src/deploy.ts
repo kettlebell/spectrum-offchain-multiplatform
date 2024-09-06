@@ -1,29 +1,31 @@
+import fs from "node:fs/promises";
 import {
+  Blaze,
+  Blockfrost,
+  Core,
   Data,
-  fromHex,
-  fromText,
-  Lucid,
-  Script,
-  toHex,
-} from "https://deno.land/x/lucid@0.10.7/mod.ts";
-import * as cbor from "https://deno.land/x/cbor@v1.5.9/index.js";
-import { getLucid } from "./lucid.ts";
-import { setupWallet } from "./wallet.ts";
+  HotWallet,
+  Maestro,
+  Static,
+  Value,
+} from "@blaze-cardano/sdk";
+import { getBlaze } from "./wallet.ts";
 import {
-  DeploymentMintingOnetimeMint,
-  PermManagerPermManager,
-  VeFactoryMintVeCompositionToken,
+  GovernancePermManagerPermManager,
+  GovernanceVeFactoryMintVeCompositionToken,
+  TokenDeploymentMintingOnetimeMint,
+  TokenSmartFarmSmartFarm,
 } from "./../plutus.ts";
-import { VotingEscrowVotingEscrow } from "../plutus.ts";
-import { VotingEscrowMintGovernancePower } from "../plutus.ts";
-import { GovProxyGovProxy } from "../plutus.ts";
-import { VeFactoryVeFactory } from "../plutus.ts";
-import { WeightingPollWpFactory } from "../plutus.ts";
-import { WeightingPollMintWpAuthToken } from "../plutus.ts";
-import { SmartFarmMintFarmAuthToken } from "../plutus.ts";
-import { SmartFarmFarmFactory } from "../plutus.ts";
-import { VotingEscrowMintWeightingPower } from "../plutus.ts";
-import { InflationInflation } from "../plutus.ts";
+import { GovernanceVotingEscrowVotingEscrow } from "../plutus.ts";
+import { GovernanceVotingEscrowMintGovernancePower } from "../plutus.ts";
+import { GovernanceGovProxyGovProxy } from "../plutus.ts";
+import { GovernanceVeFactoryVeFactory } from "../plutus.ts";
+import { GovernanceWeightingPollWpFactory } from "../plutus.ts";
+import { GovernanceWeightingPollMintWpAuthToken } from "../plutus.ts";
+import { TokenSmartFarmMintFarmAuthToken } from "../plutus.ts";
+import { TokenSmartFarmFarmFactory } from "../plutus.ts";
+import { GovernanceVotingEscrowMintWeightingPower } from "../plutus.ts";
+import { TokenInflationInflation } from "../plutus.ts";
 import {
   BuiltValidators,
   DaoInput,
@@ -32,11 +34,8 @@ import {
   ScriptNames,
 } from "./types.ts";
 import { NFTNames } from "./types.ts";
-import { sleep } from "../../splash-testing-cardano/src/helpers.ts";
-import { walletFromSeed } from "https://deno.land/x/lucid@0.10.7/src/misc/wallet.ts";
-import { mnemonicToEntropy } from "https://deno.land/x/lucid@0.10.7/src/misc/bip39.ts";
-import { Bip32PrivateKey } from "https://deno.land/x/lucid@0.10.7/src/core/libs/cardano_multiplatform_lib/cardano_multiplatform_lib.generated.js";
-import { IdentifierMintIdentifier } from "../plutus.ts";
+import { TokenIdentifierMintIdentifier } from "../plutus.ts";
+// import { Bip32PublicKey, toHex } from "@blaze-cardano/core";
 
 const NFT_JSON_FILENAME = "nfts.json";
 const BUILT_VALIDATORS_JSON_FILENAME = "validators.json";
@@ -45,17 +44,16 @@ const PREPROD_DEPLOYMENT_JSON_FILENAME = "preprod.deployment.json";
 const TX_CONFIRMATION_WAIT_TIME = 120000;
 
 const SPLASH_POLICY_ID =
-  "b9ee0c3dc6547eed55b4f857ec4b45c168b4f820f610dcf13aea2fb5";
-const SPLASH_ASSET_NAME = fromText("SPLASH");
-const ZEROTH_EPOCH_START = 1724481737000n;
+  "3976a4503e5aabc4ada7dc4ba871bda4ca7fe4c670f9a1572ca296d2";
+const SPLASH_ASSET_NAME = stringToHex("SPLASH");
+const ZEROTH_EPOCH_START = 1725443610000n;
 const INFLATION_BOX_INITIAL_SPLASH_QTY = 32000000000000n;
-const LQ_NAME = fromText("SPLASH/ADA LQ*");
-const LQ_POLICY_ID = "9d30e3622a4e2cb54b7f776dc329e2c525350c0d2980db0ebe5fdbe1";
+const LQ_NAME = stringToHex("SPLASH/ADA LQ*");
+const LQ_POLICY_ID = "082ad267dc5eb4d3a52e1fc830b0e054c2e497ebc02c49982bfc9734";
 
 async function main() {
   // console.log(toHex(cbor.encode(new Uint8Array([]))));
-  const lucid = await getLucid();
-  const pubKey = await setupWallet(lucid);
+  const [blaze, pubKey, kk] = await getBlaze();
 
   // SPECIFY SETTINGS HERE -------------------------------------------------------------------------
 
@@ -65,6 +63,8 @@ async function main() {
     policy: LQ_POLICY_ID,
     name: LQ_NAME,
   }, { num: 1n, den: 1n });
+
+  const cborWriter = new Core.CborWriter();
 
   const daoInput: DaoInput = {
     inflation: 0n,
@@ -78,11 +78,12 @@ async function main() {
     },
     farmFactory: {
       lastFarmId: 10007199254740991n,
-      farmSeedData: toHex(cbor.encode(new Uint8Array([]))),
+      farmSeedData: cborWriter.writeByteString(new Uint8Array([]))
+        .encodeAsHex(),
     },
     wpFactory: {
       lastPollEpoch: -1n,
-      activeFarms: [fromText("farm0"), fromText("f1")],
+      activeFarms: [stringToHex("farm0"), stringToHex("f1")],
     },
     veFactory: {
       acceptedAssets,
@@ -91,125 +92,127 @@ async function main() {
   };
 
   //------------------------------------------------------------------------------------------------
-
-  // await mintNFTs(lucid);
+  await mintNFTs(blaze);
 
   const nftDetails = JSON.parse(
-    await Deno.readTextFile(NFT_JSON_FILENAME),
+    await fs.readFile(NFT_JSON_FILENAME, "utf8"),
   );
 
-  const txs = await deployValidators(lucid);
+  const txs = await deployValidators(blaze);
   const builtValidators = JSON.parse(
-    await Deno.readTextFile(BUILT_VALIDATORS_JSON_FILENAME),
+    await fs.readFile(BUILT_VALIDATORS_JSON_FILENAME, "utf8"),
   );
 
   await getDeployedValidators(
-    lucid,
+    blaze,
     builtValidators,
     txs,
   );
   const deployedValidators = JSON.parse(
-    await Deno.readTextFile(DEPLOYED_VALIDATORS_JSON_FILENAME),
+    await fs.readFile(DEPLOYED_VALIDATORS_JSON_FILENAME, "utf8"),
   );
 
   const preprodConfig = {
     validators: deployedValidators,
     nfts: nftDetails,
   };
-  await Deno.writeTextFile(
+  await fs.writeFile(
     PREPROD_DEPLOYMENT_JSON_FILENAME,
     toJson(preprodConfig),
   );
 
-  await createEntities(lucid, deployedValidators, nftDetails, daoInput);
+  await createEntities(blaze, deployedValidators, nftDetails, daoInput);
 }
 
 async function createMultipleMintingUtxOs(
-  lucid: Lucid,
-  addr: string,
+  blaze: Blaze<Maestro, HotWallet>,
+  addr: Core.Address,
   firstValuePerBox: bigint,
   subsequentValuePerBox: bigint,
 ) {
-  const tx = await lucid.newTx()
-    .payToAddress(addr, { lovelace: firstValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
-    .payToAddress(addr, { lovelace: subsequentValuePerBox })
+  const tx = await blaze.newTransaction()
+    .payLovelace(addr, firstValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
+    .payLovelace(addr, subsequentValuePerBox)
     .complete();
 
-  const signedTx = await tx.sign().complete();
+  const signedTx = await blaze.signTransaction(tx);
 
-  const txHash = await signedTx.submit();
+  const txHash = await blaze.submitTransaction(signedTx);
   console.log("Creating UTxOs. tx hash: " + txHash);
-  await lucid.awaitTx(txHash);
+  await blaze.provider.awaitTransactionConfirmation(txHash);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
   console.log("created multiple UTxOs.");
   return txHash;
 }
 
 async function mintNFTs(
-  lucid: Lucid,
+  blaze: Blaze<Maestro, HotWallet>,
 ) {
-  const myAddr = await lucid.wallet.address();
+  const myAddr = blaze.wallet.address;
 
-  const multipleUTxOTxId = await createMultipleMintingUtxOs(
-    lucid,
-    myAddr,
-    20000000n,
-    20000000n,
-  );
+  //const multipleUTxOTxId = await createMultipleMintingUtxOs(
+  //  blaze,
+  //  myAddr,
+  //  20000000n,
+  //  20000000n,
+  //);
 
-  const utxos = (await lucid.utxosAt(myAddr)).filter((utxo) =>
-    utxo.txHash === multipleUTxOTxId
-  );
+  const multipleUTxOTxId =
+    "c7eca333595da956163263e9b78c878b57e40a9f45b400c8f175d98b66e54a66";
 
-  const nftDetails = buildNFTDetails(
-    lucid,
-    multipleUTxOTxId,
-  );
-  let txBuilder = lucid.newTx().collectFrom(utxos);
+  const utxos = (await blaze.provider.getUnspentOutputs(myAddr)).filter((
+    utxo,
+  ) => utxo.input().transactionId() === multipleUTxOTxId);
+
+  const nftDetails = buildNFTDetails(multipleUTxOTxId);
+  let txBuilder = blaze.newTransaction().addUnspentOutputs(utxos);
 
   const keys = Object.keys(nftDetails) as NFTNames[];
+  // const key = keys[0];
+  keys.pop();
   for (const key of keys) {
-    const { script, policyId, assetName, quantity } = nftDetails[key];
-    console.log("Policy ID for " + assetName + ": " + policyId);
-    const unit = policyId + assetName;
-    txBuilder = txBuilder
-      .mintAssets({ [unit]: quantity }, Data.void())
-      .attachMintingPolicy(script);
-    console.log("Added mint to TX for " + assetName);
+  const { script, policyId, assetName, quantity } = nftDetails[key];
+  console.log(
+    "Policy ID for " + key + ": " + policyId + ", qty: " + quantity,
+  );
+  const actualScript = Core.Script.fromCbor(script);
+  txBuilder = txBuilder
+    .addMint(policyId, new Map().set(assetName, quantity), Data.void())
+    .provideScript(actualScript);
+  console.log("Added mint to TX for " + assetName);
   }
 
   // Write to JSON
   const filePath = NFT_JSON_FILENAME;
 
   // Write the object to a JSON file
-  await Deno.writeTextFile(filePath, toJson(nftDetails));
+  await fs.writeFile(filePath, toJson(nftDetails));
 
   const tx = await txBuilder.complete();
-  const signedTx = await tx.sign().complete();
-  const txHash = await signedTx.submit();
+  throw new Error("txBuilder.complete() didn't crash!");
+  const signedTx = await blaze.signTransaction(tx);
+  const txHash = await blaze.submitTransaction(signedTx);
   console.log("Minting NFTs. tx hash: " + txHash);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash);
+  await blaze.provider.awaitTransactionConfirmation(txHash);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
-
   console.log("Minted NFTs.");
 }
 
 function buildNFTDetails(
-  lucid: Lucid,
   multipleUTxOTxId: string,
 ): NFTDetails {
-  const toMint: [Script, string][] = [];
+  const toMint: [Core.HexBlob, string][] = [];
   const NUM_NFTS = 7;
   for (let i = 0; i < NUM_NFTS; i++) {
-    const script = new DeploymentMintingOnetimeMint(
+    const script = new TokenDeploymentMintingOnetimeMint(
       {
         transactionId: { hash: multipleUTxOTxId },
         outputIndex: BigInt(i),
@@ -217,27 +220,26 @@ function buildNFTDetails(
       1n,
     );
 
-    const policyId = lucid.utils.mintingPolicyToId(script);
-    toMint.push([script, policyId]);
+    toMint.push([script.toCbor(), script.hash()]);
   }
 
   // gt_policy tokens
   const gtTokenQty = 45000000000000000n;
-  const mintGTScript = new DeploymentMintingOnetimeMint({
+  const mintGTScript = new TokenDeploymentMintingOnetimeMint({
     transactionId: { hash: multipleUTxOTxId },
     outputIndex: BigInt(NUM_NFTS),
   }, gtTokenQty);
-  const gtPolicyId = lucid.utils.mintingPolicyToId(mintGTScript);
+  const gtPolicyId = mintGTScript.hash();
 
-  toMint.push([mintGTScript, gtPolicyId]);
+  toMint.push([mintGTScript.toCbor(), gtPolicyId]);
 
   const toBuiltPolicy = (
-    e: [Script, string],
+    e: [Core.HexBlob, string],
     quantity: bigint,
   ) => {
     return {
       script: e[0],
-      policyId: e[1],
+      policyId: Core.PolicyId(e[1]),
       assetName: "a4",
       quantity,
     };
@@ -256,9 +258,9 @@ function buildNFTDetails(
 }
 
 async function deployValidators(
-  lucid: Lucid,
+  blaze: Blaze<Maestro, HotWallet>,
 ): Promise<[string, string, string]> {
-  const nftDetails = JSON.parse(await Deno.readTextFile(NFT_JSON_FILENAME));
+  const nftDetails = JSON.parse(await fs.readFile(NFT_JSON_FILENAME, "utf8"));
   const gtPolicy = nftDetails.gt.policyId;
   const veFactoryAuthPolicy = nftDetails.ve_factory_auth.policyId;
   const proposalAuthPolicy = nftDetails.proposal_auth.policyId;
@@ -266,66 +268,58 @@ async function deployValidators(
   const edaoMSig = nftDetails.edao_msig.policyId;
   const inflationAuthPolicy = nftDetails.inflation_auth.policyId;
 
-  const governancePowerScript = new VotingEscrowMintGovernancePower(
+  const governancePowerScript = new GovernanceVotingEscrowMintGovernancePower(
     proposalAuthPolicy,
     gtPolicy,
   );
-  const governancePowerPolicy = lucid.utils.mintingPolicyToId(
-    governancePowerScript,
-  );
+  const governancePowerPolicy = governancePowerScript.hash();
 
-  const govProxyScript = new GovProxyGovProxy(
+  const govProxyScript = new GovernanceGovProxyGovProxy(
     veFactoryAuthPolicy,
     proposalAuthPolicy,
     governancePowerPolicy,
     gtPolicy,
   );
-  const govProxyScriptHash = lucid.utils.validatorToScriptHash(govProxyScript);
+  const govProxyScriptHash = govProxyScript.hash();
 
-  const veCompositionScript = new VeFactoryMintVeCompositionToken(
+  const veCompositionScript = new GovernanceVeFactoryMintVeCompositionToken(
     veFactoryAuthPolicy,
   );
-  const veCompositionPolicy = lucid.utils.mintingPolicyToId(
-    veCompositionScript,
-  );
+  const veCompositionPolicy = veCompositionScript.hash();
 
-  const votingEscrowScript = new VotingEscrowVotingEscrow(
+  const votingEscrowScript = new GovernanceVotingEscrowVotingEscrow(
     veFactoryAuthPolicy,
     veCompositionPolicy,
   );
 
-  const veScriptHash = lucid.utils.validatorToScriptHash(
-    votingEscrowScript,
-  );
+  const veScriptHash = votingEscrowScript.hash();
 
   const farmFactoryAuthPolicy = nftDetails.factory_auth.policyId;
 
   // `mint_farm_auth_token` is a multivalidator with `smart_farm`
-  const farmAuthScript = new SmartFarmMintFarmAuthToken(
+  const farmAuthScript = new TokenSmartFarmMintFarmAuthToken(
     SPLASH_POLICY_ID,
     farmFactoryAuthPolicy,
   );
 
-  const farmAuthScriptHash = lucid.utils.validatorToScriptHash(
-    farmAuthScript,
-  );
+  const farmAuthScriptHash = farmAuthScript.hash();
 
-  const farmAuthPolicy = lucid.utils.mintingPolicyToId(farmAuthScript);
+  const farmAuthPolicy = farmAuthScript.hash();
 
   const wpFactoryAuthPolicy = nftDetails.wp_factory_auth.policyId;
-  const wpAuthScript = new WeightingPollMintWpAuthToken(
+  const wpAuthScript = new GovernanceWeightingPollMintWpAuthToken(
     SPLASH_POLICY_ID,
     farmAuthPolicy,
     wpFactoryAuthPolicy,
     inflationAuthPolicy,
     ZEROTH_EPOCH_START,
   );
-  const wpAuthPolicy = lucid.utils.mintingPolicyToId(wpAuthScript);
+  const wpAuthPolicy = wpAuthScript.hash();
 
-  const veIdentifierScript = new IdentifierMintIdentifier();
-  const veIdentifierPolicy = lucid.utils.mintingPolicyToId(veIdentifierScript);
+  const veIdentifierScript = new TokenIdentifierMintIdentifier();
+  const veIdentifierPolicy = veIdentifierScript.hash();
 
-  const veFactoryScript = new VeFactoryVeFactory(
+  const veFactoryScript = new GovernanceVeFactoryVeFactory(
     veFactoryAuthPolicy,
     veIdentifierPolicy,
     veCompositionPolicy,
@@ -333,40 +327,32 @@ async function deployValidators(
     veScriptHash,
     govProxyScriptHash,
   );
-  const veFactoryScriptHash = lucid.utils.mintingPolicyToId(veFactoryScript);
+  const veFactoryScriptHash = veFactoryScript.hash();
 
-  const wpFactoryScript = new WeightingPollWpFactory(
+  const wpFactoryScript = new GovernanceWeightingPollWpFactory(
     wpAuthPolicy,
     govProxyScriptHash,
   );
-  const wpFactoryScriptHash = lucid.utils.validatorToScriptHash(
-    wpFactoryScript,
-  );
+  const wpFactoryScriptHash = wpFactoryScript.hash();
 
-  const farmFactoryScript = new SmartFarmFarmFactory(
+  const farmFactoryScript = new TokenSmartFarmFarmFactory(
     farmAuthPolicy,
     govProxyScriptHash,
   );
 
-  const farmFactoryScriptHash = lucid.utils.validatorToScriptHash(
-    farmFactoryScript,
-  );
+  const farmFactoryScriptHash = farmFactoryScript.hash();
 
-  const weightingPowerScript = new VotingEscrowMintWeightingPower(
+  const weightingPowerScript = new GovernanceVotingEscrowMintWeightingPower(
     ZEROTH_EPOCH_START,
     proposalAuthPolicy,
     gtPolicy,
   );
 
-  const weightingPowerScriptHash = lucid.utils.validatorToScriptHash(
-    weightingPowerScript,
-  );
+  const weightingPowerScriptHash = weightingPowerScript.hash();
 
-  const weightingPowerPolicy = lucid.utils.mintingPolicyToId(
-    weightingPowerScript,
-  );
+  const weightingPowerPolicy = weightingPowerScript.hash();
 
-  const inflationScript = new InflationInflation(
+  const inflationScript = new TokenInflationInflation(
     inflationAuthPolicy,
     SPLASH_POLICY_ID,
     wpAuthPolicy,
@@ -374,17 +360,13 @@ async function deployValidators(
     ZEROTH_EPOCH_START,
   );
 
-  const inflationScriptHash = lucid.utils.validatorToScriptHash(
-    inflationScript,
-  );
+  const inflationScriptHash = inflationScript.hash();
 
-  const permManagerScript = new PermManagerPermManager(
+  const permManagerScript = new GovernancePermManagerPermManager(
     edaoMSig,
     permManagerAuthPolicy,
   );
-  const permManagerScriptHash = lucid.utils.validatorToScriptHash(
-    permManagerScript,
-  );
+  const permManagerScriptHash = permManagerScript.hash();
 
   const builtValidators: BuiltValidators = {
     inflation: {
@@ -486,112 +468,133 @@ async function deployValidators(
   };
 
   // Write the object to a JSON file
-  await Deno.writeTextFile(
+  await fs.writeFile(
     BUILT_VALIDATORS_JSON_FILENAME,
     toJson(builtValidators),
   );
 
-  const ns: Script = lucid.utils.nativeScriptFromJson({
-    type: "before",
-    slot: 0,
+  //const ns: Core.NativeScript = Core.NativeScript.newTimelockExpiry()  blaze.utils.nativeScriptFromJson({
+  //  type: "before",
+  //  slot: 0,
+  //});
+  const lockScript = Core.addressFromBech32(
+    "addr_test1wp8v2rexyjaxyppmaezyfz7fkwy059ewpde7l9xr4vhcp9qvrkvl0",
+  );
+
+  const MyDatumSchema = Data.Object({
+    scriptRef: Data.Bytes(),
   });
-  const lockScript = lucid.utils.validatorToAddress(ns);
-  const tx0 = await lucid
-    .newTx()
-    .payToAddressWithData(
+
+  type MyDatum = Static<typeof MyDatumSchema>;
+  const MyDatum = MyDatumSchema as unknown as MyDatum;
+
+  const toDatum = (script: Core.Script) => {
+    const datum: MyDatum = {
+      scriptRef: script.hash(),
+    };
+    return Data.to(datum, MyDatum);
+  };
+
+  const datum: MyDatum = {
+    scriptRef: builtValidators.inflation.script.hash(),
+  };
+
+  const tx0 = await blaze
+    .newTransaction()
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.inflation.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.inflation.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.votingEscrow.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.votingEscrow.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.farmFactory.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.farmFactory.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.wpFactory.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.wpFactory.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.veFactory.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.veFactory.script),
     )
     .complete();
-  const signedTx0 = await tx0.sign().complete();
-  const txHash0 = await signedTx0.submit();
+  const signedTx0 = await blaze.signTransaction(tx0);
+  const txHash0 = await blaze.submitTransaction(signedTx0);
   console.log("Deploying validators (first batch). tx hash: " + txHash0);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash0);
+  await blaze.provider.awaitTransactionConfirmation(txHash0);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
 
-  const tx1 = await lucid
-    .newTx()
-    .payToAddressWithData(
+  const tx1 = await blaze
+    .newTransaction()
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.govProxy.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.govProxy.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.permManager.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.permManager.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.mintWPAuthToken.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.mintWPAuthToken.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.mintVEIdentifierToken.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.mintVEIdentifierToken.script),
     )
     .complete();
-  const signedTx1 = await tx1.sign().complete();
-  const txHash1 = await signedTx1.submit();
+  const signedTx1 = await blaze.signTransaction(tx1);
+  const txHash1 = await blaze.submitTransaction(signedTx1);
   console.log("Deploying validators (2nd batch). tx hash: " + txHash1);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash1);
+  await blaze.provider.awaitTransactionConfirmation(txHash1);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
 
   // 3rd batch
-  const tx2 = await lucid
-    .newTx()
-    .payToAddressWithData(
+  const tx2 = await blaze
+    .newTransaction()
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.mintVECompositionToken.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.mintVECompositionToken.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.weightingPower.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.weightingPower.script),
     )
-    .payToAddressWithData(
+    .payAssets(
       lockScript,
-      { scriptRef: builtValidators.smartFarm.script },
-      {},
+      Value.zero(),
+      toDatum(builtValidators.smartFarm.script),
     )
     .complete();
-  const signedTx2 = await tx2.sign().complete();
-  const txHash2 = await signedTx2.submit();
+  const signedTx2 = await blaze.signTransaction(tx2);
+  const txHash2 = await blaze.submitTransaction(signedTx2);
   console.log("Deploying validators (3rd batch). tx hash: " + txHash2);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash2);
+  await blaze.provider.awaitTransactionConfirmation(txHash2);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
 
   return [txHash0, txHash1, txHash2];
 }
 
 async function createEntities(
-  lucid: Lucid,
+  blaze: Blaze<Maestro, HotWallet>,
   dv: DeployedValidators,
   nftDetails: NFTDetails,
   daoInput: DaoInput,
@@ -608,69 +611,88 @@ async function createEntities(
   const wpFactoryAuthToken = nftDetails.wp_factory_auth.policyId +
     nftDetails.wp_factory_auth.assetName;
 
-  const toAddr = (hash: string) =>
-    lucid.utils.credentialToAddress(
-      { hash, type: "Script" },
+  const toAddr = (script: Core.Script) =>
+    Core.addressFromValidator(
+      Core.NetworkId.Testnet,
+      script,
     );
 
   const qty = 10000000n;
 
   const splashToken = SPLASH_POLICY_ID + SPLASH_ASSET_NAME;
 
-  const tx = await lucid.newTx()
-    .readFrom([
-      dv.inflation.referenceUtxo,
-      dv.farmFactory.referenceUtxo,
-      dv.wpFactory.referenceUtxo,
-      dv.veFactory.referenceUtxo,
-      dv.govProxy.referenceUtxo,
-      dv.permManager.referenceUtxo,
-    ])
-    .payToContract(
-      toAddr(dv.inflation.hash),
-      { inline: Data.to(daoInput.inflation, InflationInflation.epoch) },
-      {
-        lovelace: qty,
-        [inflationAuthToken]: 1n,
-        [splashToken]: INFLATION_BOX_INITIAL_SPLASH_QTY,
-      },
+  const inflationAssets: [string, bigint][] = [
+    [inflationAuthToken, 1n],
+    [splashToken, INFLATION_BOX_INITIAL_SPLASH_QTY],
+  ];
+
+  const inflationTokenMap = new Map();
+  inflationTokenMap.set(inflationAuthToken, 1n);
+  inflationTokenMap.set(splashToken, INFLATION_BOX_INITIAL_SPLASH_QTY);
+  const inflationValue = Value.makeValue(qty);
+  inflationValue.setMultiasset(inflationTokenMap);
+
+  const smartFarmFactoryTokenMap = new Map();
+  smartFarmFactoryTokenMap.set(farmFactoryAuthToken, 1n);
+  const smartFarmFactoryValue = Value.makeValue(5n * qty);
+  smartFarmFactoryValue.setMultiasset(smartFarmFactoryTokenMap);
+
+  const wpFactoryTokenMap = new Map();
+  wpFactoryTokenMap.set(wpFactoryAuthToken, 1n);
+  const wpFactoryValue = Value.makeValue(qty);
+  wpFactoryValue.setMultiasset(wpFactoryTokenMap);
+
+  const veFactoryTokenMap = new Map();
+  veFactoryTokenMap.set(veFactoryAuthToken, 1n);
+  veFactoryTokenMap.set(gtToken, BigInt(nftDetails.gt.quantity));
+  const veFactoryValue = Value.makeValue(qty);
+  veFactoryValue.setMultiasset(veFactoryTokenMap);
+
+  //{ lovelace: qty, []: 1n },
+  const permManagerTokenMap = new Map();
+  permManagerTokenMap.set(permManagerAuthToken, 1n);
+  const permManagerValue = Value.makeValue(qty);
+  permManagerValue.setMultiasset(permManagerTokenMap);
+
+  const tx = await blaze.newTransaction()
+    .addReferenceInput(dv.inflation.referenceUtxo)
+    .addReferenceInput(dv.farmFactory.referenceUtxo)
+    .addReferenceInput(dv.wpFactory.referenceUtxo)
+    .addReferenceInput(dv.veFactory.referenceUtxo)
+    .addReferenceInput(dv.govProxy.referenceUtxo)
+    .addReferenceInput(dv.permManager.referenceUtxo)
+    .payAssets(
+      toAddr(dv.inflation.script),
+      inflationValue,
+      Data.to(daoInput.inflation, TokenInflationInflation.epoch),
     )
-    .payToContract(
-      toAddr(dv.farmFactory.hash),
-      { inline: Data.to(daoInput.farmFactory, SmartFarmFarmFactory.state) },
-      { lovelace: 5n * qty, [farmFactoryAuthToken]: 1n },
+    .payAssets(
+      toAddr(dv.farmFactory.script),
+      smartFarmFactoryValue,
+      Data.to(daoInput.farmFactory, TokenSmartFarmFarmFactory.state),
     )
-    .payToContract(
-      toAddr(dv.wpFactory.hash),
-      {
-        inline: Data.to(daoInput.wpFactory, WeightingPollWpFactory.state),
-      },
-      { lovelace: qty, [wpFactoryAuthToken]: 1n },
+    .payAssets(
+      toAddr(dv.wpFactory.script),
+      wpFactoryValue,
+      Data.to(daoInput.wpFactory, GovernanceWeightingPollWpFactory.state),
     )
-    .payToContract(
-      toAddr(dv.veFactory.hash),
-      { inline: Data.to(daoInput.veFactory, VeFactoryVeFactory.conf) },
-      {
-        lovelace: qty,
-        [veFactoryAuthToken]: 1n,
-        [gtToken]: BigInt(nftDetails.gt.quantity),
-      },
+    .payAssets(
+      toAddr(dv.veFactory.script),
+      veFactoryValue,
+      Data.to(daoInput.veFactory, GovernanceVeFactoryVeFactory.conf),
     )
-    .payToAddress(
-      toAddr(dv.govProxy.hash),
-      { lovelace: qty },
-    )
-    .payToContract(
-      toAddr(dv.permManager.hash),
+    .payLovelace(toAddr(dv.govProxy.script), qty)
+    .payAssets(
+      toAddr(dv.permManager.script),
+      permManagerValue,
       Data.void(),
-      { lovelace: qty, [permManagerAuthToken]: 1n },
     ).complete();
 
-  const signedTx = await tx.sign().complete();
-  const txHash = await signedTx.submit();
+  const signedTx = await blaze.signTransaction(tx);
+  const txHash = await blaze.submitTransaction(signedTx);
   console.log("Creating entities. TX hash: " + txHash);
   console.log("Waiting for TX to be confirmed");
-  await lucid.awaitTx(txHash);
+  await blaze.provider.awaitTransactionConfirmation(txHash);
   await sleep(TX_CONFIRMATION_WAIT_TIME);
 
   console.log("Entities created.");
@@ -678,18 +700,18 @@ async function createEntities(
   // Create smart_farm and farm_factory
   //
   // farm_auth token
-  const mintFarmAuthScript = new SmartFarmMintFarmAuthToken(
+  const mintFarmAuthScript = new TokenSmartFarmMintFarmAuthToken(
     SPLASH_POLICY_ID,
     nftDetails.factory_auth.policyId,
   );
-  const mintFarmAuthScriptHash = lucid.utils.validatorToScriptHash(
-    mintFarmAuthScript,
-  );
+  const mintFarmAuthScriptHash = mintFarmAuthScript.hash();
+
   console.log("mint_farm_auth_script_hash: " + mintFarmAuthScriptHash);
 
   const newFarmId = daoInput.farmFactory.lastFarmId + 1n;
   console.log("new farm id: " + newFarmId);
-  const farmAssetName = toHex(cbor.encode(newFarmId));
+  const farmAssetName = new Core.CborWriter().writeBigInteger(newFarmId)
+    .encodeAsHex();
   console.log("farm asset name: " + farmAssetName);
   const farmAuthToken = mintFarmAuthScriptHash + farmAssetName;
 
@@ -698,61 +720,63 @@ async function createEntities(
     farmSeedData: daoInput.farmFactory.farmSeedData,
   };
 
-  const farmFactoryAddr = await lucid.utils.validatorToAddress(
-    dv.farmFactory.script,
-  );
+  const farmFactoryAddr = toAddr(dv.farmFactory.script);
 
   console.log(farmFactoryAddr);
 
-  const utxos = (await lucid.utxosAt(farmFactoryAddr)).filter((utxo) =>
-    utxo.txHash === txHash
-  );
+  const utxos = (await blaze.provider.getUnspentOutputs(farmFactoryAddr))
+    .filter((utxo) => utxo.input().transactionId() === txHash);
   console.log(utxos);
 
-  const step0 = lucid.newTx()
-    .readFrom([
-      dv.farmFactory.referenceUtxo,
-      // dv.smartFarm.referenceUtxo,
-    ])
-    .collectFrom(
-      utxos,
-      Data.to("CreateFarm", SmartFarmFarmFactory.action),
+  const mintFarmAuthTokenMap = new Map();
+  mintFarmAuthTokenMap.set(farmAuthToken, 1n);
+
+  const step0 = blaze.newTransaction()
+    .addReferenceInput(dv.farmFactory.referenceUtxo)
+    .addInput(
+      utxos[1],
+      Data.to("CreateFarm", TokenSmartFarmFarmFactory.action),
     )
-    .attachMintingPolicy(mintFarmAuthScript)
-    .mintAssets(
-      { [farmAuthToken]: 1n },
+    .addMint(
+      Core.PolicyId(mintFarmAuthScriptHash),
+      mintFarmAuthTokenMap,
       Data.to(
         { MintAuthToken: { factoryInIx: 0n } },
-        SmartFarmMintFarmAuthToken.action,
+        TokenSmartFarmMintFarmAuthToken.action,
       ),
     );
 
+  const farmFactoryTokenMap = new Map();
+  farmFactoryTokenMap.set(farmFactoryAuthToken, 1n);
+  const farmFactoryValue = Value.makeValue(5n * qty);
+
   console.log("added minting to TX");
-  const step1 = step0.payToContract(
-    toAddr(dv.farmFactory.hash),
-    { inline: Data.to(factoryOutDatum, SmartFarmFarmFactory.state) },
-    { lovelace: 5n * qty, [farmFactoryAuthToken]: 1n },
+  const step1 = step0.payAssets(
+    toAddr(dv.farmFactory.script),
+    farmFactoryValue,
+    Data.to(factoryOutDatum, TokenSmartFarmFarmFactory.state),
   );
   console.log("add output to factory ");
   try {
-    const farmTx0 = step1
-      .payToContract(
-        toAddr(mintFarmAuthScriptHash),
-        { inline: Data.to(toHex(new Uint8Array([]))) },
-        { lovelace: qty, [farmAuthToken]: 1n },
-      );
+    const farmTx = await step1
+      .payAssets(
+        toAddr(mintFarmAuthScript), // remember: same validator as smart-farm
+        Value.makeValue(qty, [farmAuthToken, 1n]),
+        Data.to(
+          dv.permManager.hash,
+          TokenSmartFarmSmartFarm.permManagerAuthPolicy,
+        ),
+      ).complete();
     //const farmTx = await farmTx0.complete({ nativeUplc: true });
-    const farmTx = await farmTx0.complete();
+    // const farmTx = await farmTx0.complete();
 
     console.log("Trying to sign TX");
-    const txComplete = farmTx.sign();
+    const signedFarmTx = await blaze.signTransaction(farmTx);
     console.log("TX successfully signed");
-    const signedFarmTx = await txComplete.complete();
-    console.log("TX successfully completed");
-    const farmTxHash = await signedFarmTx.submit();
+    const farmTxHash = await blaze.submitTransaction(signedFarmTx);
     console.log("Creating smart_farm and farm_factory. TX hash: " + farmTxHash);
     console.log("Waiting for TX to be confirmed");
-    await lucid.awaitTx(farmTxHash);
+    await blaze.provider.awaitTransactionConfirmation(farmTxHash);
     await sleep(TX_CONFIRMATION_WAIT_TIME);
 
     console.log("smart_farm and farm_factory created.");
@@ -762,34 +786,42 @@ async function createEntities(
 }
 
 async function getDeployedValidators(
-  lucid: Lucid,
+  blaze: Blaze<Maestro, HotWallet>,
   builtValidators: BuiltValidators,
   deployedValidatorsTxId: [string, string, string],
 ) {
   try {
     const builtValidatorsKeys = Object.keys(builtValidators) as ScriptNames[];
-    const left = builtValidatorsKeys.slice(0, 5).map((_, index) => ({
-      txHash: deployedValidatorsTxId[0],
-      outputIndex: index,
-    }));
+    const left = builtValidatorsKeys.slice(0, 5).map((_, index) => (
+      new Core.TransactionInput(
+        Core.TransactionId(deployedValidatorsTxId[0]),
+        BigInt(index),
+      )
+    ));
     const mid = builtValidatorsKeys.slice(5, 8).map((
       _,
       index,
-    ) => ({
-      txHash: deployedValidatorsTxId[1],
-      outputIndex: index,
-    }));
+    ) => (
+      new Core.TransactionInput(
+        Core.TransactionId(deployedValidatorsTxId[1]),
+        BigInt(index),
+      )
+    ));
     const right = builtValidatorsKeys.slice(8, builtValidatorsKeys.length).map((
       _,
       index,
-    ) => ({
-      txHash: deployedValidatorsTxId[2],
-      outputIndex: index,
-    }));
+    ) => (
+      new Core.TransactionInput(
+        Core.TransactionId(deployedValidatorsTxId[2]),
+        BigInt(index),
+      )
+    ));
 
     const utxosByOutRefsRequest = left.concat(mid).concat(right);
 
-    const validatorsUtxos = await lucid.utxosByOutRef(utxosByOutRefsRequest);
+    const validatorsUtxos = await blaze.provider.resolveUnspentOutputs(
+      utxosByOutRefsRequest,
+    );
 
     const deployedValidators = builtValidatorsKeys.reduce((
       acc,
@@ -814,7 +846,7 @@ async function getDeployedValidators(
 
     const filepath = DEPLOYED_VALIDATORS_JSON_FILENAME;
     // Write the object to a JSON file
-    await Deno.writeTextFile(
+    await fs.writeFile(
       filepath,
       toJson(deployedValidators),
     );
@@ -825,7 +857,7 @@ async function getDeployedValidators(
 }
 
 // From: https://stackoverflow.com/a/58253280
-function toJson(data) {
+function toJson(data: any) {
   if (data !== undefined) {
     return JSON.stringify(
       data,
@@ -836,83 +868,112 @@ function toJson(data) {
 }
 
 // Utility function to generate a new wallet seed
-async function generateSeed() {
-  const lucid = await getLucid();
-  const seedPhrase = lucid.utils.generateSeedPhrase();
-  const fromSeed = walletFromSeed(
-    seedPhrase,
-    {
-      addressType: "Base",
-      accountIndex: 0,
-    },
-  );
-  console.log(seedPhrase);
-  console.log(fromSeed.address);
-}
-
-function computePrivateKeyFromSeedPhrase(seedPhrase: string) {
-  const entropy = mnemonicToEntropy(seedPhrase);
-
-  // Encode the string into a Uint8Array
-  console.log(
-    Bip32PrivateKey.from_bip39_entropy(fromHex(entropy), new Uint8Array())
-      .to_bech32(),
-  );
-  const s = walletFromSeed(seedPhrase, {
-    addressType: "Base",
-    accountIndex: 0,
-  });
-  console.log(s.address);
-}
+//async function generateSeed() {
+//  const lucid = await getLucid();
+//  const seedPhrase = lucid.utils.generateSeedPhrase();
+//  const fromSeed = walletFromSeed(
+//    seedPhrase,
+//    {
+//      addressType: "Base",
+//      accountIndex: 0,
+//    },
+//  );
+//  console.log(seedPhrase);
+//  console.log(fromSeed.address);
+//}
+//
+//function computePrivateKeyFromSeedPhrase(seedPhrase: string) {
+//  const entropy = mnemonicToEntropy(seedPhrase);
+//
+//  // Encode the string into a Uint8Array
+//  console.log(
+//    Bip32PrivateKey.from_bip39_entropy(Core.fromHex(entropy), new Uint8Array())
+//      .to_bech32(),
+//  );
+//  const s = walletFromSeed(seedPhrase, {
+//    addressType: "Base",
+//    accountIndex: 0,
+//  });
+//  console.log(s.address);
+//}
 
 async function mintTokens(asset_name: string, quantity: bigint) {
-  const lucid = await getLucid();
-  const pubKey = await setupWallet(lucid);
-  const { paymentCredential } = lucid.utils.getAddressDetails(
-    await lucid.wallet.address(),
+  //const lucid = await getLucid();
+  //const pubKey = await setupWallet(lucid);
+  //const { paymentCredential } = lucid.utils.getAddressDetails(
+  //  await lucid.wallet.address(),
+  //);
+
+  const [blaze, pubKeyHex, kk] = await getBlaze();
+  // const pk = Bip32PublicKey.fromBytes(pubKeyHex)
+
+  const validUntil = Core.Slot(69757647 + 10001);
+
+  const scriptPK = new Core.ScriptPubkey(kk);
+  const before = new Core.TimelockExpiry(validUntil);
+  const scriptAll = new Core.ScriptAll(
+    [
+      Core.NativeScript.newScriptPubkey(scriptPK),
+      Core.NativeScript.newTimelockExpiry(before),
+    ],
   );
 
-  const mintingPolicy = lucid.utils.nativeScriptFromJson(
-    {
-      type: "all",
-      scripts: [
-        { type: "sig", keyHash: paymentCredential.hash },
-        {
-          type: "before",
-          slot: lucid.utils.unixTimeToSlot(Date.now() + 1000000),
-        },
-      ],
-    },
-  );
+  const mintingPolicy = Core.NativeScript.newScriptAll(scriptAll);
 
-  const policyId = lucid.utils.mintingPolicyToId(mintingPolicy);
+  const script = Core.Script.newNativeScript(mintingPolicy);
+
+  //lucid.utils.nativeScriptFromJson(
+  //  {
+  //    type: "all",
+  //    scripts: [
+  //      { type: "sig", keyHash: paymentCredential.hash },
+  //      {
+  //        type: "before",
+  //        slot: lucid.utils.unixTimeToSlot(Date.now() + 1000000),
+  //      },
+  //    ],
+  //  },
+  //);
+
+  const policyId = Core.PolicyId(mintingPolicy.hash());
 
   const unit = policyId + asset_name;
   console.log("policy id: " + policyId);
 
-  const tx = await lucid.newTx()
-    .mintAssets({ [unit]: quantity })
-    .validTo(Date.now() + 200000)
-    .attachMintingPolicy(mintingPolicy)
+  const tx = await blaze.newTransaction()
+    .provideScript(script)
+    .addMint(policyId, new Map().set(asset_name, quantity))
+    .setValidUntil(validUntil)
     .complete();
 
-  const signedTx = await tx.sign().complete();
+  const signedTx = await blaze.signTransaction(tx);
 
   console.log("Minting test tokens");
-  const txHash = await signedTx.submit();
+  const txHash = await blaze.submitTransaction(signedTx);
+  await blaze.provider.awaitTransactionConfirmation(txHash);
   console.log("Mint TX hash: " + txHash);
 }
 
-async function payToAddress(addr: string) {
-  const lucid = await getLucid();
-  const _ = await setupWallet(lucid);
-  const tx = await lucid.newTx().payToAddress(addr, { lovelace: 4810000000n })
-    .complete();
-  const signedTx = await tx.sign().complete();
+//async function payToAddress(addr: string) {
+//  const lucid = await getLucid();
+//  const _ = await setupWallet(lucid);
+//  const tx = await lucid.newTx().payToAddress(addr, { lovelace: 4810000000n })
+//    .complete();
+//  const signedTx = await tx.sign().complete();
+//
+//  console.log("Pay to " + addr);
+//  const txHash = await signedTx.submit();
+//  console.log("TX hash: " + txHash);
+//}
 
-  console.log("Pay to " + addr);
-  const txHash = await signedTx.submit();
-  console.log("TX hash: " + txHash);
+function stringToHex(s: string) {
+  const encoder = new TextEncoder();
+  const uint8Array = new Uint8Array(Buffer.from(s, "utf8"));
+  return Core.toHex(uint8Array);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // generateSeed();
@@ -921,5 +982,5 @@ async function payToAddress(addr: string) {
 //);
 main();
 
-// mintTokens(LQ_NAME, INFLATION_BOX_INITIAL_SPLASH_QTY);
-// mintTokens(SPLASH_ASSET_NAME, 2n * INFLATION_BOX_INITIAL_SPLASH_QTY);
+//mintTokens(LQ_NAME, INFLATION_BOX_INITIAL_SPLASH_QTY);
+//mintTokens(SPLASH_ASSET_NAME, 2n * INFLATION_BOX_INITIAL_SPLASH_QTY);

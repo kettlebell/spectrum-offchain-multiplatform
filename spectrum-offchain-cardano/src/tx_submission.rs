@@ -11,8 +11,8 @@ use pallas_network::miniprotocols::localtxsubmission::cardano_node_errors::{
     AlonzoUtxoPredFailure, ApplyTxError, BabbageUtxoPredFailure, BabbageUtxowPredFailure,
     ShelleyLedgerPredFailure, TxInput,
 };
-use pallas_network::miniprotocols::localtxsubmission::{self, NodeError};
-use pallas_network::miniprotocols::localtxsubmission::{CBORErrorBytes, Response};
+use pallas_network::miniprotocols::localtxsubmission::Response;
+use pallas_network::miniprotocols::localtxsubmission::{self};
 use pallas_network::multiplexer;
 
 use cardano_submit_api::client::{Error, LocalTxSubmissionClient};
@@ -104,7 +104,7 @@ where
                 match agent.client.submit_tx((*tx).clone()).await {
                     Ok(Response::Accepted) => on_resp.send(SubmissionResult::Ok).expect("Responder was dropped"),
                     Ok(Response::Rejected(errors)) => {
-                        trace!("TX {} was rejected due to error: {:?}, raw CBOR bytes: {}", tx_hash, errors.0, hex::encode(&errors.1.0));
+                        trace!("TX {} was rejected due to error: {:?}", tx_hash, errors);
                         on_resp.send(SubmissionResult::TxRejected{errors:  RejectReasons(errors)}).expect("Responder was dropped");
                     },
                     Err(Error::TxSubmissionProtocol(err)) => {
@@ -113,7 +113,7 @@ where
                             localtxsubmission::Error::ChannelError(multiplexer::Error::Decoding(_)) => {
                                 warn!("TX {} was likely rejected, reason unknown. Trying to recover.", tx_hash);
                                 agent.recover();
-                                on_resp.send(SubmissionResult::TxRejected{errors: RejectReasons(NodeError(vec![], CBORErrorBytes(vec![])))}).expect("Responder was dropped");
+                                on_resp.send(SubmissionResult::TxRejected{errors: RejectReasons(vec![])}).expect("Responder was dropped");
                             }
                             retryable_err => {
                                 trace!("Failed to submit TX {}: protocol returned error: {}", tx_hash, retryable_err);
@@ -141,7 +141,7 @@ impl TryFrom<RejectReasons> for HashSet<OutputRef> {
     fn try_from(value: RejectReasons) -> Result<Self, Self::Error> {
         let mut outputs = HashSet::new();
 
-        for ApplyTxError { node_errors } in value.0 .0 {
+        for ApplyTxError { node_errors } in value.0 {
             for error in node_errors {
                 if let ShelleyLedgerPredFailure::UtxowFailure(BabbageUtxowPredFailure::UtxoFailure(
                     BabbageUtxoPredFailure::AlonzoInBabbageUtxoPredFailure(
@@ -181,4 +181,4 @@ where
 
 #[derive(Debug, Clone, derive_more::Display, derive_more::From)]
 #[display(fmt = "RejectReasons: {:?}", "_0")]
-pub struct RejectReasons(NodeError);
+pub struct RejectReasons(pub Vec<ApplyTxError>);

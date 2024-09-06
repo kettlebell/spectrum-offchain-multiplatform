@@ -5,19 +5,10 @@
   "author": "Micah Kendall",
   "main": "index.js",
   "license": "MIT",
-  "scripts": {
-    "build": "yarn build:contracts && yarn build:blueprint",
-    "build:contracts": "aiken build",
-    "build:blueprint": "deno run --allow-net --allow-read --allow-write --allow-env parse_blueprint.ts",
-    "deploy:new": "deno run --allow-net --allow-read --allow-write --allow-env src/scripts/deploy.ts",
-    "admin:begin_sale": "deno run --allow-net --allow-read --allow-env src/scripts/admin_actions/begin_sale.ts",
-    "admin:close_sale": "deno run --allow-net --allow-read --allow-env src/scripts/admin_actions/close_sale.ts",
-    "admin:end_sale": "deno run --allow-net --allow-read --allow-env src/scripts/admin_actions/end_sale.ts",
-    "admin:claim_sale": "deno run --allow-net --allow-read --allow-env src/scripts/admin_actions/claim_sale.ts",
-    "metadata": "bun run src/old/meta.ts > meta.json && bun x prettier -w meta.json"
-  },
+  "scripts": {},
   "devDependencies": {
     "@types/jest": "^29.5.11",
+    "@types/node": "^22.5.1",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
     "eslint": "^8.57.0",
@@ -30,7 +21,12 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
+    "@blaze-cardano/sdk": "^0.1.22",
+    "@blaze-cardano/uplc": "^0.1.16",
+    "@blaze-cardano/core": "^0.4.2",
     "@noble/ed25519": "^2.0.0",
     "blakejs": "^1.2.1"
-  }
+  },
+  "keywords": [],
+  "type": "module"
 }

@@ -1,20 +1,14 @@
 import {
-  M,
-  PolicyId,
-  Script,
-  UTxO,
-} from "https://deno.land/x/lucid@0.10.7/mod.ts";
-import {
-  IGovProxyGovProxy,
-  IInflationInflation,
-  ISmartFarmFarmFactory,
-  IVeFactoryVeFactory,
-  IVotingEscrowVotingEscrow,
-  IWeightingPollWpFactory,
+  GovernanceVeFactoryVeFactory,
+  GovernanceVotingEscrowVotingEscrow,
+  GovernanceWeightingPollWpFactory,
+  TokenInflationInflation,
+  TokenSmartFarmFarmFactory,
 } from "../plutus.ts";
+import { Core } from "@blaze-cardano/sdk";
 
 export type BuiltValidator = {
-  script: Script;
+  script: Core.Script;
   hash: string;
   cost: {
     mem: bigint;
@@ -23,8 +17,8 @@ export type BuiltValidator = {
 };
 
 export type BuiltPolicy = {
-  script: Script;
-  policyId: PolicyId;
+  script: Core.HexBlob;
+  policyId: Core.PolicyId;
   assetName: string;
   quantity: bigint;
 };
@@ -54,7 +48,7 @@ export type NFTNames =
   | "wp_factory_auth";
 
 export type DeployedValidator = BuiltValidator & {
-  referenceUtxo: UTxO;
+  referenceUtxo: Core.TransactionUnspentOutput;
 };
 
 export type BuiltValidators = Record<ScriptNames, BuiltValidator>;
@@ -77,9 +71,9 @@ export type WPFactoryState = {
 };
 
 export type DaoInput = {
-  inflation: IInflationInflation["epoch"];
-  votingEscrow: IVotingEscrowVotingEscrow["state"];
-  farmFactory: ISmartFarmFarmFactory["state"];
-  wpFactory: IWeightingPollWpFactory["state"];
-  veFactory: IVeFactoryVeFactory["conf"];
+  inflation: TokenInflationInflation["epoch"];
+  votingEscrow: GovernanceVotingEscrowVotingEscrow["state"];
+  farmFactory: TokenSmartFarmFarmFactory["state"];
+  wpFactory: GovernanceWeightingPollWpFactory["state"];
+  veFactory: GovernanceVeFactoryVeFactory["conf"];
 };

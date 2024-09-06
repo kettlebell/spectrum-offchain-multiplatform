@@ -217,18 +217,20 @@ impl Has<MintWPAuthRefScriptOutput> for ProtocolConfig {
 
 impl Has<MintVEIdentifierPolicy> for ProtocolConfig {
     fn select<U: IsEqual<MintVEIdentifierPolicy>>(&self) -> MintVEIdentifierPolicy {
-        MintVEIdentifierPolicy(self.deployed_validators.mint_ve_identifier_token.hash)
+        // MintVEIdentifierPolicy(self.deployed_validators.mint_ve_identifier_token.hash)
+        todo!()
     }
 }
 
 impl Has<MintVEIdentifierRefScriptOutput> for ProtocolConfig {
     fn select<U: IsEqual<MintVEIdentifierRefScriptOutput>>(&self) -> MintVEIdentifierRefScriptOutput {
-        MintVEIdentifierRefScriptOutput(
-            self.deployed_validators
-                .mint_ve_identifier_token
-                .reference_utxo
-                .clone(),
-        )
+        //MintVEIdentifierRefScriptOutput(
+        //    self.deployed_validators
+        //        .mint_ve_identifier_token
+        //        .reference_utxo
+        //        .clone(),
+        //)
+        todo!()
     }
 }
 
@@ -396,7 +398,8 @@ impl Has<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>>
     fn select<U: IsEqual<DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }>>>(
         &self,
     ) -> DeployedScriptInfo<{ ProtocolValidator::MintVeIdentifierToken as u8 }> {
-        DeployedScriptInfo::from(&self.deployed_validators.mint_ve_identifier_token)
+        // DeployedScriptInfo::from(&self.deployed_validators.mint_ve_identifier_token)
+        todo!()
     }
 }
 
