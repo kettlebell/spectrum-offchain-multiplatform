@@ -56,7 +56,7 @@ export async function getBlaze(): Promise<
   const networkId = Core.NetworkId.Testnet;
   const provider = new Maestro({
     network: "preprod",
-    apiKey: "osMxy0Zueq15NkxIucOQppmHKC4FX8vI",
+    apiKey,
   });
   const wallet = await HotWallet.fromMasterkey(
     masterkey.hex(),

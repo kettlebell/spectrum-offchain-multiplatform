@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@blaze-cardano/core':
-        specifier: ^0.4.2
-        version: 0.4.2(rxjs@7.8.1)
+        specifier: ^0.4.5
+        version: 0.4.5(rxjs@7.8.1)
       '@blaze-cardano/sdk':
-        specifier: ^0.1.22
-        version: 0.1.23(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)
+        specifier: ^0.1.32
+        version: 0.1.32(rxjs@7.8.1)
       '@blaze-cardano/uplc':
-        specifier: ^0.1.16
-        version: 0.1.17(rxjs@7.8.1)
+        specifier: ^0.1.26
+        version: 0.1.26(rxjs@7.8.1)
       '@noble/ed25519':
         specifier: ^2.0.0
         version: 2.1.0
@@ -243,32 +243,29 @@ packages:
     resolution: {integrity: sha512-R0XPZ/IQhU2TtetSFI9vI+7kJOJYNiCncn5ixEBW+/LNaZCo2HK37Mq3pRNzrM4FryuAkyeqY7Ujmj3I3e3t9g==}
     engines: {node: '>=16.0.0', npm: '>=7.0.0'}
 
-  '@blaze-cardano/core@0.4.2':
-    resolution: {integrity: sha512-IXTKdmKsWAVGJXGO+aVxIRNthIHyq21C6zwns3c2dKmiGNKRNtAz/HpF8Tkl+jfES+0qLeSCsRAhiR+UO6oQqw==}
+  '@blaze-cardano/core@0.4.5':
+    resolution: {integrity: sha512-2JGV/DhAH8x/lXboPIpD7//OLhIYSMCzRmFeQvwefjB/p214h3TpFGonc0dvna7epTgu3sz/Qas0ycz6bSEdfA==}
 
   '@blaze-cardano/jest-config@0.0.1':
     resolution: {integrity: sha512-q/0BzXoN+PP4kcwmqthJEYrQ1ee3pZ1Y2dV7X7levyccX8yVMxgMUvJjXhZKl0Bb9g8JidoxanVaBW0d0Y0mSw==}
 
-  '@blaze-cardano/ogmios@0.0.4':
-    resolution: {integrity: sha512-aajYcnbvAapqu4SGaXmvmPDiweOQ6lPBfFdbc/lLdoKj/zuy0VcEt6GgO44d2XOpUMSUeNBQgZ9t5eCOMmqHoQ==}
+  '@blaze-cardano/ogmios@0.0.5':
+    resolution: {integrity: sha512-mWMiXD3hTYm+uxnANMLf5JfvJpqmNtJ05YW3YFLtYx32pMnXBjUToBfZ9N97OazjLjt1Hwd09jUn6HyAo81fnA==}
 
-  '@blaze-cardano/query@0.2.12':
-    resolution: {integrity: sha512-EQ3doymmdVvGU6Z7BRqATcVTdKtHB1/JvXVo6FDyI8dOwtJu7DDDaDs7wYBdxV81W+AqD04lschbDUmEIOb5WQ==}
+  '@blaze-cardano/query@0.2.16':
+    resolution: {integrity: sha512-+C9h2f97Vb1q5o071yH+Ej1SypuGD5gOS7yGoyKvnh3gjnj/+s45A5iLrGg2u7X0cG5MiRtIcWdPV5juovzi/A==}
 
-  '@blaze-cardano/sdk@0.1.23':
-    resolution: {integrity: sha512-FnBurA3C+tM51CEjsAWB/FcTOG0s/agfPkmifnaLgNPvU4cdCxpXZnz9SeZHAMcijj/9tR7BujpM0EcdpATLyg==}
+  '@blaze-cardano/sdk@0.1.32':
+    resolution: {integrity: sha512-3xVj/P9IeoXgJt8Vk8ofdanjTWqYQBjR4Z1N/MGL41bvoLOxlNgfAz/Nn7Iy0qEEy798/VysffC2YTZsKG2U2A==}
 
-  '@blaze-cardano/tx@0.5.6':
-    resolution: {integrity: sha512-l3/55657ndD5HGpNtDZzUg+WGg8WyVY5HO/hWR16APkOiqJOT0m3lZvqeaWeFkxf3nWaIvqFUEvML+eXCGtXtg==}
+  '@blaze-cardano/tx@0.5.15':
+    resolution: {integrity: sha512-4LxN2LxxnQIjJ1EtcbjPHI0ZabYTP7SjaCJFxOu6guTmdxqlk3kK7yH0e+H67F5F+4zlYhOkIzRbIlb5zEFpqg==}
 
-  '@blaze-cardano/uplc@0.1.17':
-    resolution: {integrity: sha512-6eh0VXZX46+S7xEmpi53BjGOL0djw48u1UD5G4WL7DCaomKFqdvo3VwUGGJFgkzDFJFNv7tpAc6K633eTZJK6w==}
+  '@blaze-cardano/uplc@0.1.26':
+    resolution: {integrity: sha512-lj93czmI8fgU6tnomlKqWt0xw6PsXldcdidvZpkWRLbmoKppT6WXxVsPiMDJGY1fIPVBkrUceTCSWyMdFQUk/A==}
 
-  '@blaze-cardano/wallet@0.1.42':
-    resolution: {integrity: sha512-62NRdk0NrUmOpfrG/eleLKGu7NFqpEsWacyAhG2qj29i1eMIRqutBG+8yexea/f3XRhU8SQvu4jE412e6drfEg==}
-
-  '@bufbuild/protobuf@1.10.0':
-    resolution: {integrity: sha512-QDdVFLoN93Zjg36NoQPZfsVH9tZew7wKDKyV5qRdj8ntT4wQCOradQjRaTdwMhWUYsgKsvCINKKm87FdEk96Ag==}
+  '@blaze-cardano/wallet@0.1.51':
+    resolution: {integrity: sha512-AO7BdsWki78S3fG5rAczVE8xLbK0DdKGCstexVP56xBaplwpkKF724UchCbK/LNCyv4+g1/7jcay/DQzNsIg2w==}
 
   '@cardano-ogmios/client@6.3.0':
     resolution: {integrity: sha512-nWaZ76n/R+p8nxBfRCetOuoDH8o5QToL5zWhRUu9EwHDJqM/0rzvYEk9JYCikAcVlC1qt6+3CcG4nCpG0dsptw==}
@@ -365,18 +362,6 @@ packages:
   '@chainsafe/netmask@2.0.0':
     resolution: {integrity: sha512-I3Z+6SWUoaljh3TBzCnCxjlUyN8tA+NAk5L6m9IxvCf1BENQTePzPMis97CoN/iMW1St3WN+AWCCRp+TTBRiDg==}
 
-  '@connectrpc/connect-node@1.4.0':
-    resolution: {integrity: sha512-0ANnrr6SvsjevsWEgdzHy7BaHkluZyS6s4xNoVt7RBHFR5V/kT9lPokoIbYUOU9JHzdRgTaS3x5595mwUsu15g==}
-    engines: {node: '>=16.0.0'}
-    peerDependencies:
-      '@bufbuild/protobuf': ^1.4.2
-      '@connectrpc/connect': 1.4.0
-
-  '@connectrpc/connect@1.4.0':
-    resolution: {integrity: sha512-vZeOkKaAjyV4+RH3+rJZIfDFJAfr+7fyYr6sLDKbYX3uuTVszhFe9/YKf5DNqrDb5cKdKVlYkGn6DTDqMitAnA==}
-    peerDependencies:
-      '@bufbuild/protobuf': ^1.4.2
-
   '@emurgo/cardano-message-signing-nodejs@1.0.1':
     resolution: {integrity: sha512-PoKh1tQnJX18f8iEr8Jk1KXxKCn9eqaSslMI1pyOJvYRJhQVDLCh0+9YReufjp0oFJIY1ShcrR+4/WnECVZUKQ==}
 
@@ -397,10 +382,6 @@ packages:
   '@eslint/js@8.57.0':
     resolution: {integrity: sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
-  '@fastify/busboy@2.1.1':
-    resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
-    engines: {node: '>=14'}
 
   '@foxglove/crc@0.0.3':
     resolution: {integrity: sha512-DjIZsnL3CyP/yQ/vUYA9cjrD0a/8YXejI5ZmsaOiT16cLfZcTwaCxIN01/ys4jsy+dZCQ/9DnWFn7AEFbiMDaA==}
@@ -615,9 +596,6 @@ packages:
   '@types/node@18.19.50':
     resolution: {integrity: sha512-xonK+NRrMBRtkL1hVCc3G+uXtjh1Al4opBLjqVmipe5ZAaBYWW6cNAiBVZ1BvmkBhep698rP3UM3aRAdSALuhg==}
 
-  '@types/node@20.14.10':
-    resolution: {integrity: sha512-MdiXf+nDuMvY0gJKxyfZ7/6UFsETO7mGKF54MVD/ekJS6HdFtpZFBgrh6Pseu64XTb2MLyFPlbW6hj8HYRQNOQ==}
-
   '@types/node@22.5.4':
     resolution: {integrity: sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==}
 
@@ -696,13 +674,6 @@ packages:
 
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
-
-  '@utxorpc/sdk@0.4.0':
-    resolution: {integrity: sha512-wYMqXtaoaT2q3ZufZMi/K5SZOxB2S4OCSq2Wti//odk46OG/5gzrKCAB8gC1D9FAu/NNdt0SzgZ0uFShNLtiMA==}
-
-  '@utxorpc/spec@0.9.0':
-    resolution: {integrity: sha512-MSAbFrYr2dXkuHSDWYMkItYv5anuzeGd50t2+XjBoaI/eCNhviflLpl1i90XB00a1LOuHyS8o2Z+EBgB5i/h/A==}
-    engines: {node: '>=16.0.0'}
 
   '@zxing/text-encoding@0.9.0':
     resolution: {integrity: sha512-U/4aVJ2mxI0aDNI8Uq0wEhMgY+u4CNtEb0om3+y3+niDAsoTCOB33UF0sxpzqzdqXLqmvc+vZyAt4O8pPdfkwA==}
@@ -1325,6 +1296,7 @@ packages:
   follow-redirects@1.15.8:
     resolution: {integrity: sha512-xgrmBhBToVKay1q2Tao5LI26B83UhrB/vM1avwVSDzt8rx3rO6AizBAaF46EgksTVr+rFTQaqZZ9MVBfUe4nig==}
     engines: {node: '>=4.0'}
+    deprecated: Browser detection issues fixed in v1.15.9
     peerDependencies:
       debug: '*'
     peerDependenciesMeta:
@@ -2546,10 +2518,6 @@ packages:
   undici-types@6.19.8:
     resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
 
-  undici@5.28.4:
-    resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
-    engines: {node: '>=14.0'}
-
   update-browserslist-db@1.1.0:
     resolution: {integrity: sha512-EdRAaAyk2cUE1wOf2DkEhzxqOQvFOoRJFNS6NeyJ01Gp2beMRpBAINjM2iDXE3KCuKhwnvHIQCJm6ThL2Z+HzQ==}
     hasBin: true
@@ -2872,7 +2840,7 @@ snapshots:
       multiformats: 13.2.2
       uint8arrays: 5.1.0
 
-  '@blaze-cardano/core@0.4.2(rxjs@7.8.1)':
+  '@blaze-cardano/core@0.4.5(rxjs@7.8.1)':
     dependencies:
       '@cardano-sdk/core': 0.35.4(rxjs@7.8.1)
       '@cardano-sdk/crypto': 0.1.30
@@ -2895,24 +2863,21 @@ snapshots:
 
   '@blaze-cardano/jest-config@0.0.1': {}
 
-  '@blaze-cardano/ogmios@0.0.4(ws@8.18.0)':
+  '@blaze-cardano/ogmios@0.0.5(ws@8.18.0)':
     dependencies:
       '@cardano-ogmios/schema': 6.6.1
       isomorphic-ws: 5.0.0(ws@8.18.0)
     transitivePeerDependencies:
       - ws
 
-  '@blaze-cardano/query@0.2.12(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)':
+  '@blaze-cardano/query@0.2.16(rxjs@7.8.1)':
     dependencies:
-      '@blaze-cardano/core': 0.4.2(rxjs@7.8.1)
+      '@blaze-cardano/core': 0.4.5(rxjs@7.8.1)
       '@blaze-cardano/jest-config': 0.0.1
-      '@blaze-cardano/ogmios': 0.0.4(ws@8.18.0)
+      '@blaze-cardano/ogmios': 0.0.5(ws@8.18.0)
       '@cardano-ogmios/schema': 6.6.1
-      '@utxorpc/sdk': 0.4.0(@bufbuild/protobuf@1.10.0)
-      '@utxorpc/spec': 0.9.0
       ws: 8.18.0
     transitivePeerDependencies:
-      - '@bufbuild/protobuf'
       - '@dcspark/cardano-multiplatform-lib-asmjs'
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
@@ -2923,28 +2888,13 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@blaze-cardano/sdk@0.1.23(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)':
+  '@blaze-cardano/sdk@0.1.32(rxjs@7.8.1)':
     dependencies:
-      '@blaze-cardano/core': 0.4.2(rxjs@7.8.1)
-      '@blaze-cardano/query': 0.2.12(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)
-      '@blaze-cardano/tx': 0.5.6(rxjs@7.8.1)
-      '@blaze-cardano/uplc': 0.1.17(rxjs@7.8.1)
-      '@blaze-cardano/wallet': 0.1.42(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)
-    transitivePeerDependencies:
-      - '@bufbuild/protobuf'
-      - '@dcspark/cardano-multiplatform-lib-asmjs'
-      - '@dcspark/cardano-multiplatform-lib-browser'
-      - '@dcspark/cardano-multiplatform-lib-nodejs'
-      - bufferutil
-      - debug
-      - encoding
-      - rxjs
-      - supports-color
-      - utf-8-validate
-
-  '@blaze-cardano/tx@0.5.6(rxjs@7.8.1)':
-    dependencies:
-      '@blaze-cardano/core': 0.4.2(rxjs@7.8.1)
+      '@blaze-cardano/core': 0.4.5(rxjs@7.8.1)
+      '@blaze-cardano/query': 0.2.16(rxjs@7.8.1)
+      '@blaze-cardano/tx': 0.5.15(rxjs@7.8.1)
+      '@blaze-cardano/uplc': 0.1.26(rxjs@7.8.1)
+      '@blaze-cardano/wallet': 0.1.51(rxjs@7.8.1)
     transitivePeerDependencies:
       - '@dcspark/cardano-multiplatform-lib-asmjs'
       - '@dcspark/cardano-multiplatform-lib-browser'
@@ -2956,10 +2906,24 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@blaze-cardano/uplc@0.1.17(rxjs@7.8.1)':
+  '@blaze-cardano/tx@0.5.15(rxjs@7.8.1)':
     dependencies:
-      '@blaze-cardano/core': 0.4.2(rxjs@7.8.1)
-      '@blaze-cardano/tx': 0.5.6(rxjs@7.8.1)
+      '@blaze-cardano/core': 0.4.5(rxjs@7.8.1)
+    transitivePeerDependencies:
+      - '@dcspark/cardano-multiplatform-lib-asmjs'
+      - '@dcspark/cardano-multiplatform-lib-browser'
+      - '@dcspark/cardano-multiplatform-lib-nodejs'
+      - bufferutil
+      - debug
+      - encoding
+      - rxjs
+      - supports-color
+      - utf-8-validate
+
+  '@blaze-cardano/uplc@0.1.26(rxjs@7.8.1)':
+    dependencies:
+      '@blaze-cardano/core': 0.4.5(rxjs@7.8.1)
+      '@blaze-cardano/tx': 0.5.15(rxjs@7.8.1)
       hex-encoding: 2.0.2
     transitivePeerDependencies:
       - '@dcspark/cardano-multiplatform-lib-asmjs'
@@ -2972,13 +2936,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@blaze-cardano/wallet@0.1.42(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)':
+  '@blaze-cardano/wallet@0.1.51(rxjs@7.8.1)':
     dependencies:
-      '@blaze-cardano/core': 0.4.2(rxjs@7.8.1)
-      '@blaze-cardano/query': 0.2.12(@bufbuild/protobuf@1.10.0)(rxjs@7.8.1)
-      '@blaze-cardano/tx': 0.5.6(rxjs@7.8.1)
+      '@blaze-cardano/core': 0.4.5(rxjs@7.8.1)
+      '@blaze-cardano/query': 0.2.16(rxjs@7.8.1)
+      '@blaze-cardano/tx': 0.5.15(rxjs@7.8.1)
     transitivePeerDependencies:
-      - '@bufbuild/protobuf'
       - '@dcspark/cardano-multiplatform-lib-asmjs'
       - '@dcspark/cardano-multiplatform-lib-browser'
       - '@dcspark/cardano-multiplatform-lib-nodejs'
@@ -2988,8 +2951,6 @@ snapshots:
       - rxjs
       - supports-color
       - utf-8-validate
-
-  '@bufbuild/protobuf@1.10.0': {}
 
   '@cardano-ogmios/client@6.3.0':
     dependencies:
@@ -3261,16 +3222,6 @@ snapshots:
     dependencies:
       '@chainsafe/is-ip': 2.0.2
 
-  '@connectrpc/connect-node@1.4.0(@bufbuild/protobuf@1.10.0)(@connectrpc/connect@1.4.0(@bufbuild/protobuf@1.10.0))':
-    dependencies:
-      '@bufbuild/protobuf': 1.10.0
-      '@connectrpc/connect': 1.4.0(@bufbuild/protobuf@1.10.0)
-      undici: 5.28.4
-
-  '@connectrpc/connect@1.4.0(@bufbuild/protobuf@1.10.0)':
-    dependencies:
-      '@bufbuild/protobuf': 1.10.0
-
   '@emurgo/cardano-message-signing-nodejs@1.0.1': {}
 
   '@eslint-community/eslint-utils@4.4.0(eslint@8.57.0)':
@@ -3295,8 +3246,6 @@ snapshots:
       - supports-color
 
   '@eslint/js@8.57.0': {}
-
-  '@fastify/busboy@2.1.1': {}
 
   '@foxglove/crc@0.0.3': {}
 
@@ -3640,10 +3589,6 @@ snapshots:
     dependencies:
       undici-types: 5.26.5
 
-  '@types/node@20.14.10':
-    dependencies:
-      undici-types: 5.26.5
-
   '@types/node@22.5.4':
     dependencies:
       undici-types: 6.19.8
@@ -3744,19 +3689,6 @@ snapshots:
       eslint-visitor-keys: 3.4.3
 
   '@ungap/structured-clone@1.2.0': {}
-
-  '@utxorpc/sdk@0.4.0(@bufbuild/protobuf@1.10.0)':
-    dependencies:
-      '@connectrpc/connect': 1.4.0(@bufbuild/protobuf@1.10.0)
-      '@connectrpc/connect-node': 1.4.0(@bufbuild/protobuf@1.10.0)(@connectrpc/connect@1.4.0(@bufbuild/protobuf@1.10.0))
-      '@types/node': 20.14.10
-      '@utxorpc/spec': 0.9.0
-    transitivePeerDependencies:
-      - '@bufbuild/protobuf'
-
-  '@utxorpc/spec@0.9.0':
-    dependencies:
-      '@bufbuild/protobuf': 1.10.0
 
   '@zxing/text-encoding@0.9.0':
     optional: true
@@ -5854,10 +5786,6 @@ snapshots:
   undici-types@5.26.5: {}
 
   undici-types@6.19.8: {}
-
-  undici@5.28.4:
-    dependencies:
-      '@fastify/busboy': 2.1.1
 
   update-browserslist-db@1.1.0(browserslist@4.23.3):
     dependencies:

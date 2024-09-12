@@ -8,7 +8,7 @@ import {
 import { Core } from "@blaze-cardano/sdk";
 
 export type BuiltValidator = {
-  script: Core.Script;
+  script: Core.HexBlob;
   hash: string;
   cost: {
     mem: bigint;
@@ -48,8 +48,14 @@ export type NFTNames =
   | "wp_factory_auth";
 
 export type DeployedValidator = BuiltValidator & {
-  referenceUtxo: Core.TransactionUnspentOutput;
+  referenceUtxoCBOR: Core.HexBlob;
 };
+
+// This will be exported in the deployment JSON
+export type UTxO = {
+  txHash: Core.TransactionId;
+  outputIndex: number;
+}
 
 export type BuiltValidators = Record<ScriptNames, BuiltValidator>;
 export type DeployedValidators = Record<ScriptNames, DeployedValidator>;

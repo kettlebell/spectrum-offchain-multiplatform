@@ -44,12 +44,12 @@ const PREPROD_DEPLOYMENT_JSON_FILENAME = "preprod.deployment.json";
 const TX_CONFIRMATION_WAIT_TIME = 120000;
 
 const SPLASH_POLICY_ID =
-  "3976a4503e5aabc4ada7dc4ba871bda4ca7fe4c670f9a1572ca296d2";
+  "24a887fb51f4d1354033389323d32136a3efe2e0cd73c9d31ed12889";
 const SPLASH_ASSET_NAME = stringToHex("SPLASH");
-const ZEROTH_EPOCH_START = 1725443610000n;
+const ZEROTH_EPOCH_START = 1726067740000n;
 const INFLATION_BOX_INITIAL_SPLASH_QTY = 32000000000000n;
 const LQ_NAME = stringToHex("SPLASH/ADA LQ*");
-const LQ_POLICY_ID = "082ad267dc5eb4d3a52e1fc830b0e054c2e497ebc02c49982bfc9734";
+const LQ_POLICY_ID = "816f100d87bd0ef167ac4a9fa7144da3462534aa0f164a02f7f18def";
 
 async function main() {
   // console.log(toHex(cbor.encode(new Uint8Array([]))));
@@ -157,36 +157,38 @@ async function mintNFTs(
 ) {
   const myAddr = blaze.wallet.address;
 
-  //const multipleUTxOTxId = await createMultipleMintingUtxOs(
-  //  blaze,
-  //  myAddr,
-  //  20000000n,
-  //  20000000n,
-  //);
+  const multipleUTxOTxId = await createMultipleMintingUtxOs(
+    blaze,
+    myAddr,
+    20000000n,
+    20000000n,
+  );
 
-  const multipleUTxOTxId =
-    "c7eca333595da956163263e9b78c878b57e40a9f45b400c8f175d98b66e54a66";
 
   const utxos = (await blaze.provider.getUnspentOutputs(myAddr)).filter((
     utxo,
   ) => utxo.input().transactionId() === multipleUTxOTxId);
 
+
   const nftDetails = buildNFTDetails(multipleUTxOTxId);
-  let txBuilder = blaze.newTransaction().addUnspentOutputs(utxos);
+  let txBuilder = blaze.newTransaction();
+  utxos.forEach((input) => {
+    txBuilder = txBuilder.addInput(input);
+  });
 
   const keys = Object.keys(nftDetails) as NFTNames[];
-  // const key = keys[0];
-  keys.pop();
   for (const key of keys) {
-  const { script, policyId, assetName, quantity } = nftDetails[key];
-  console.log(
-    "Policy ID for " + key + ": " + policyId + ", qty: " + quantity,
-  );
-  const actualScript = Core.Script.fromCbor(script);
-  txBuilder = txBuilder
-    .addMint(policyId, new Map().set(assetName, quantity), Data.void())
-    .provideScript(actualScript);
-  console.log("Added mint to TX for " + assetName);
+    const { script, policyId, assetName, quantity } = nftDetails[key];
+    console.log(
+      "Policy ID for " + key + ": " + policyId + ", qty: " + quantity,
+    );
+
+    const actualScript = Core.Script.fromCbor(script);
+
+    txBuilder = txBuilder
+      .addMint(policyId, new Map().set(assetName, quantity), Data.void())
+      .provideScript(actualScript);
+    console.log("Added mint to TX for " + assetName);
   }
 
   // Write to JSON
@@ -196,7 +198,6 @@ async function mintNFTs(
   await fs.writeFile(filePath, toJson(nftDetails));
 
   const tx = await txBuilder.complete();
-  throw new Error("txBuilder.complete() didn't crash!");
   const signedTx = await blaze.signTransaction(tx);
   const txHash = await blaze.submitTransaction(signedTx);
   console.log("Minting NFTs. tx hash: " + txHash);
@@ -240,7 +241,7 @@ function buildNFTDetails(
     return {
       script: e[0],
       policyId: Core.PolicyId(e[1]),
-      assetName: "a4",
+      assetName: Core.AssetName(stringToHex("a4")),
       quantity,
     };
   };
@@ -370,7 +371,7 @@ async function deployValidators(
 
   const builtValidators: BuiltValidators = {
     inflation: {
-      script: inflationScript,
+      script: inflationScript.toCbor(),
       hash: inflationScriptHash,
       cost: {
         mem: 500000n,
@@ -378,7 +379,7 @@ async function deployValidators(
       },
     },
     votingEscrow: {
-      script: votingEscrowScript,
+      script: votingEscrowScript.toCbor(),
       hash: veScriptHash,
       cost: {
         mem: 500000n,
@@ -386,7 +387,7 @@ async function deployValidators(
       },
     },
     farmFactory: {
-      script: farmFactoryScript,
+      script: farmFactoryScript.toCbor(),
       hash: farmFactoryScriptHash,
       cost: {
         mem: 500000n,
@@ -394,7 +395,7 @@ async function deployValidators(
       },
     },
     wpFactory: {
-      script: wpFactoryScript,
+      script: wpFactoryScript.toCbor(),
       hash: wpFactoryScriptHash,
       cost: {
         mem: 500000n,
@@ -402,7 +403,7 @@ async function deployValidators(
       },
     },
     veFactory: {
-      script: veFactoryScript,
+      script: veFactoryScript.toCbor(),
       hash: veFactoryScriptHash,
       cost: {
         mem: 500000n,
@@ -410,7 +411,7 @@ async function deployValidators(
       },
     },
     govProxy: {
-      script: govProxyScript,
+      script: govProxyScript.toCbor(),
       hash: govProxyScriptHash,
       cost: {
         mem: 500000n,
@@ -418,7 +419,7 @@ async function deployValidators(
       },
     },
     permManager: {
-      script: permManagerScript,
+      script: permManagerScript.toCbor(),
       hash: permManagerScriptHash,
       cost: {
         mem: 500000n,
@@ -426,7 +427,7 @@ async function deployValidators(
       },
     },
     mintWPAuthToken: {
-      script: wpAuthScript,
+      script: wpAuthScript.toCbor(),
       hash: wpAuthPolicy,
       cost: {
         mem: 500000n,
@@ -434,7 +435,7 @@ async function deployValidators(
       },
     },
     mintVEIdentifierToken: {
-      script: veIdentifierScript,
+      script: veIdentifierScript.toCbor(),
       hash: veIdentifierPolicy,
       cost: {
         mem: 500000n,
@@ -442,7 +443,7 @@ async function deployValidators(
       },
     },
     mintVECompositionToken: {
-      script: veCompositionScript,
+      script: veCompositionScript.toCbor(),
       hash: veCompositionPolicy,
       cost: {
         mem: 500000n,
@@ -450,7 +451,7 @@ async function deployValidators(
       },
     },
     weightingPower: {
-      script: weightingPowerScript,
+      script: weightingPowerScript.toCbor(),
       hash: weightingPowerScriptHash,
       cost: {
         mem: 500000n,
@@ -458,7 +459,7 @@ async function deployValidators(
       },
     },
     smartFarm: {
-      script: farmAuthScript,
+      script: farmAuthScript.toCbor(),
       hash: farmAuthScriptHash,
       cost: {
         mem: 500000n,
@@ -473,13 +474,12 @@ async function deployValidators(
     toJson(builtValidators),
   );
 
-  //const ns: Core.NativeScript = Core.NativeScript.newTimelockExpiry()  blaze.utils.nativeScriptFromJson({
-  //  type: "before",
-  //  slot: 0,
-  //});
-  const lockScript = Core.addressFromBech32(
-    "addr_test1wp8v2rexyjaxyppmaezyfz7fkwy059ewpde7l9xr4vhcp9qvrkvl0",
-  );
+  const lockScript = Core.Script.newNativeScript(
+    Core.NativeScript.newTimelockExpiry(
+      new Core.TimelockExpiry(Core.Slot(0))
+    ));
+
+  let lockScriptAddr = Core.addressFromValidator(Core.NetworkId.Testnet, lockScript);
 
   const MyDatumSchema = Data.Object({
     scriptRef: Data.Bytes(),
@@ -490,41 +490,42 @@ async function deployValidators(
 
   const toDatum = (script: Core.Script) => {
     const datum: MyDatum = {
-      scriptRef: script.hash(),
+      scriptRef: script.toCbor(),
     };
     return Data.to(datum, MyDatum);
   };
 
-  const datum: MyDatum = {
-    scriptRef: builtValidators.inflation.script.hash(),
-  };
-
   const tx0 = await blaze
     .newTransaction()
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.inflation.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.inflation.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.votingEscrow.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.votingEscrow.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.farmFactory.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.farmFactory.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.wpFactory.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.wpFactory.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.veFactory.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.veFactory.script),
     )
     .complete();
   const signedTx0 = await blaze.signTransaction(tx0);
@@ -536,25 +537,29 @@ async function deployValidators(
 
   const tx1 = await blaze
     .newTransaction()
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.govProxy.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.govProxy.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.permManager.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.permManager.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.mintWPAuthToken.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.mintWPAuthToken.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.mintVEIdentifierToken.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.mintVEIdentifierToken.script),
     )
     .complete();
   const signedTx1 = await blaze.signTransaction(tx1);
@@ -567,20 +572,23 @@ async function deployValidators(
   // 3rd batch
   const tx2 = await blaze
     .newTransaction()
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.mintVECompositionToken.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.mintVECompositionToken.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.weightingPower.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.weightingPower.script),
     )
-    .payAssets(
-      lockScript,
+    .lockAssets(
+      lockScriptAddr,
       Value.zero(),
-      toDatum(builtValidators.smartFarm.script),
+      Data.void(),
+      Core.Script.fromCbor(builtValidators.smartFarm.script),
     )
     .complete();
   const signedTx2 = await blaze.signTransaction(tx2);
@@ -611,20 +619,15 @@ async function createEntities(
   const wpFactoryAuthToken = nftDetails.wp_factory_auth.policyId +
     nftDetails.wp_factory_auth.assetName;
 
-  const toAddr = (script: Core.Script) =>
+  const toAddr = (scriptCBOR: Core.HexBlob) =>
     Core.addressFromValidator(
       Core.NetworkId.Testnet,
-      script,
+      Core.Script.fromCbor(scriptCBOR),
     );
 
   const qty = 10000000n;
 
   const splashToken = SPLASH_POLICY_ID + SPLASH_ASSET_NAME;
-
-  const inflationAssets: [string, bigint][] = [
-    [inflationAuthToken, 1n],
-    [splashToken, INFLATION_BOX_INITIAL_SPLASH_QTY],
-  ];
 
   const inflationTokenMap = new Map();
   inflationTokenMap.set(inflationAuthToken, 1n);
@@ -648,41 +651,44 @@ async function createEntities(
   const veFactoryValue = Value.makeValue(qty);
   veFactoryValue.setMultiasset(veFactoryTokenMap);
 
-  //{ lovelace: qty, []: 1n },
   const permManagerTokenMap = new Map();
   permManagerTokenMap.set(permManagerAuthToken, 1n);
   const permManagerValue = Value.makeValue(qty);
   permManagerValue.setMultiasset(permManagerTokenMap);
 
+  const toTxUnspentOutput = (cbor: Core.HexBlob) => {
+    return Core.TransactionUnspentOutput.fromCbor(cbor);
+  };
+
   const tx = await blaze.newTransaction()
-    .addReferenceInput(dv.inflation.referenceUtxo)
-    .addReferenceInput(dv.farmFactory.referenceUtxo)
-    .addReferenceInput(dv.wpFactory.referenceUtxo)
-    .addReferenceInput(dv.veFactory.referenceUtxo)
-    .addReferenceInput(dv.govProxy.referenceUtxo)
-    .addReferenceInput(dv.permManager.referenceUtxo)
-    .payAssets(
+    .addReferenceInput(toTxUnspentOutput(dv.inflation.referenceUtxoCBOR))
+    .addReferenceInput(toTxUnspentOutput(dv.farmFactory.referenceUtxoCBOR))
+    .addReferenceInput(toTxUnspentOutput(dv.wpFactory.referenceUtxoCBOR))
+    .addReferenceInput(toTxUnspentOutput(dv.veFactory.referenceUtxoCBOR))
+    .addReferenceInput(toTxUnspentOutput(dv.govProxy.referenceUtxoCBOR))
+    .addReferenceInput(toTxUnspentOutput(dv.permManager.referenceUtxoCBOR))
+    .lockAssets(
       toAddr(dv.inflation.script),
       inflationValue,
       Data.to(daoInput.inflation, TokenInflationInflation.epoch),
     )
-    .payAssets(
+    .lockAssets(
       toAddr(dv.farmFactory.script),
       smartFarmFactoryValue,
       Data.to(daoInput.farmFactory, TokenSmartFarmFarmFactory.state),
     )
-    .payAssets(
+    .lockAssets(
       toAddr(dv.wpFactory.script),
       wpFactoryValue,
       Data.to(daoInput.wpFactory, GovernanceWeightingPollWpFactory.state),
     )
-    .payAssets(
+    .lockAssets(
       toAddr(dv.veFactory.script),
       veFactoryValue,
       Data.to(daoInput.veFactory, GovernanceVeFactoryVeFactory.conf),
     )
-    .payLovelace(toAddr(dv.govProxy.script), qty)
-    .payAssets(
+    .lockAssets(toAddr(dv.govProxy.script), Value.makeValue(qty), Data.void())
+    .lockAssets(
       toAddr(dv.permManager.script),
       permManagerValue,
       Data.void(),
@@ -713,7 +719,7 @@ async function createEntities(
   const farmAssetName = new Core.CborWriter().writeBigInteger(newFarmId)
     .encodeAsHex();
   console.log("farm asset name: " + farmAssetName);
-  const farmAuthToken = mintFarmAuthScriptHash + farmAssetName;
+  const farmAuthToken = farmAssetName;
 
   const factoryOutDatum = {
     lastFarmId: newFarmId,
@@ -732,7 +738,7 @@ async function createEntities(
   mintFarmAuthTokenMap.set(farmAuthToken, 1n);
 
   const step0 = blaze.newTransaction()
-    .addReferenceInput(dv.farmFactory.referenceUtxo)
+    .addReferenceInput(toTxUnspentOutput(dv.farmFactory.referenceUtxoCBOR))
     .addInput(
       utxos[1],
       Data.to("CreateFarm", TokenSmartFarmFarmFactory.action),
@@ -751,7 +757,7 @@ async function createEntities(
   const farmFactoryValue = Value.makeValue(5n * qty);
 
   console.log("added minting to TX");
-  const step1 = step0.payAssets(
+  const step1 = step0.lockAssets(
     toAddr(dv.farmFactory.script),
     farmFactoryValue,
     Data.to(factoryOutDatum, TokenSmartFarmFarmFactory.state),
@@ -759,8 +765,8 @@ async function createEntities(
   console.log("add output to factory ");
   try {
     const farmTx = await step1
-      .payAssets(
-        toAddr(mintFarmAuthScript), // remember: same validator as smart-farm
+      .lockAssets(
+        toAddr(mintFarmAuthScript.toCbor()), // remember: same validator as smart-farm
         Value.makeValue(qty, [farmAuthToken, 1n]),
         Data.to(
           dv.permManager.hash,
@@ -829,13 +835,13 @@ async function getDeployedValidators(
       index,
     ) => {
       const { script, hash, cost } = builtValidators[key];
-      const referenceUtxo = validatorsUtxos[index];
+      const referenceUtxoCBOR = validatorsUtxos[index].toCbor();
 
       return {
         [key]: {
           script,
           hash,
-          referenceUtxo,
+          referenceUtxoCBOR,
           cost,
         },
         ...acc,
@@ -898,16 +904,14 @@ function toJson(data: any) {
 //}
 
 async function mintTokens(asset_name: string, quantity: bigint) {
-  //const lucid = await getLucid();
-  //const pubKey = await setupWallet(lucid);
-  //const { paymentCredential } = lucid.utils.getAddressDetails(
-  //  await lucid.wallet.address(),
-  //);
 
   const [blaze, pubKeyHex, kk] = await getBlaze();
-  // const pk = Bip32PublicKey.fromBytes(pubKeyHex)
 
-  const validUntil = Core.Slot(69757647 + 10001);
+  // Estimating current slot (from https://cardano.stackexchange.com/a/8772)
+  const unixTimeInSeconds = Math.floor(Date.now() / 1000);
+  const estimatedSlot = unixTimeInSeconds - 1591566291;
+
+  const validUntil = Core.Slot(estimatedSlot + 10001);
 
   const scriptPK = new Core.ScriptPubkey(kk);
   const before = new Core.TimelockExpiry(validUntil);
@@ -922,18 +926,6 @@ async function mintTokens(asset_name: string, quantity: bigint) {
 
   const script = Core.Script.newNativeScript(mintingPolicy);
 
-  //lucid.utils.nativeScriptFromJson(
-  //  {
-  //    type: "all",
-  //    scripts: [
-  //      { type: "sig", keyHash: paymentCredential.hash },
-  //      {
-  //        type: "before",
-  //        slot: lucid.utils.unixTimeToSlot(Date.now() + 1000000),
-  //      },
-  //    ],
-  //  },
-  //);
 
   const policyId = Core.PolicyId(mintingPolicy.hash());
 
@@ -982,5 +974,5 @@ function sleep(ms: number) {
 //);
 main();
 
-//mintTokens(LQ_NAME, INFLATION_BOX_INITIAL_SPLASH_QTY);
-//mintTokens(SPLASH_ASSET_NAME, 2n * INFLATION_BOX_INITIAL_SPLASH_QTY);
+// mintTokens(LQ_NAME, INFLATION_BOX_INITIAL_SPLASH_QTY);
+// mintTokens(SPLASH_ASSET_NAME, 2n * INFLATION_BOX_INITIAL_SPLASH_QTY);
